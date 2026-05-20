@@ -2,646 +2,129 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a0a2e">
+<meta name="description" content="تحدي العقول - مسابقة ثقافية عربية تختبر سرعة بديهتك بأسئلة في مجالات متنوعة">
 <title>تحدي العقول - مسابقة ثقافية</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Amiri:wght@400;700&display=swap');
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-:root {
-  --sand-light: #F4E8C1;
-  --sand: #DEB887;
-  --sand-dark: #C4954A;
-  --gold: #D4A017;
-  --gold-bright: #FFD700;
-  --brown: #8B4513;
-  --brown-dark: #5C2E00;
-  --night: #1a0a2e;
-  --night-mid: #2d1b4e;
-  --accent-teal: #00CED1;
-  --accent-orange: #FF6B35;
-  --correct: #2ECC71;
-  --wrong: #E74C3C;
-  --text-light: #FFF8E7;
-  --text-dark: #3E2723;
-}
-
-body {
-  font-family: 'Tajawal', sans-serif;
-  background: var(--night);
-  color: var(--text-light);
-  overflow: hidden;
-  height: 100vh;
-  width: 100vw;
-  direction: rtl;
-}
-
-#three-canvas {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 0;
-}
-
-.overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(180deg, 
-    rgba(26,10,46,0.3) 0%,
-    rgba(26,10,46,0.1) 40%,
-    rgba(196,149,74,0.15) 100%
-  );
-}
-
-.game-container {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-/* ===== SCREENS ===== */
-.screen {
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 600px;
-  animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.screen.active { display: flex; }
-
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ===== START SCREEN ===== */
-.game-logo {
-  width: 140px; height: 140px;
-  background: radial-gradient(circle, var(--gold-bright), var(--gold), var(--brown));
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 20px;
-  box-shadow: 0 0 60px rgba(212,160,23,0.5), 0 0 120px rgba(212,160,23,0.2);
-  animation: logoPulse 3s ease-in-out infinite;
-  position: relative;
-}
-.game-logo::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 2px solid var(--gold-bright);
-  animation: logoRing 3s ease-in-out infinite;
-}
-@keyframes logoPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-@keyframes logoRing {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.1); }
-}
-.logo-icon {
-  font-size: 64px;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
-}
-
-.game-title {
-  font-family: 'Amiri', serif;
-  font-size: 3rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--gold-bright), var(--sand-light), var(--gold));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: none;
-  margin-bottom: 8px;
-  text-align: center;
-}
-.game-subtitle {
-  font-size: 1.1rem;
-  color: var(--sand);
-  margin-bottom: 30px;
-  opacity: 0.8;
-  text-align: center;
-}
-
-.best-record {
-  background: rgba(212,160,23,0.15);
-  border: 1px solid rgba(212,160,23,0.3);
-  border-radius: 16px;
-  padding: 16px 28px;
-  margin-bottom: 24px;
-  text-align: center;
-  backdrop-filter: blur(10px);
-}
-.best-record-label {
-  font-size: 0.85rem;
-  color: var(--sand);
-  margin-bottom: 4px;
-}
-.best-record-value {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--gold-bright);
-}
-
-.btn-start {
-  background: linear-gradient(135deg, var(--gold), var(--sand-dark));
-  color: var(--brown-dark);
-  border: none;
-  padding: 18px 60px;
-  font-size: 1.4rem;
-  font-weight: 800;
-  font-family: 'Tajawal', sans-serif;
-  border-radius: 50px;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 8px 32px rgba(212,160,23,0.4);
-  position: relative;
-  overflow: hidden;
-}
-.btn-start::before {
-  content: '';
-  position: absolute;
-  top: 0; left: -100%;
-  width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  transition: left 0.5s;
-}
-.btn-start:hover::before { left: 100%; }
-.btn-start:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(212,160,23,0.6);
-}
-.btn-start:active { transform: translateY(0); }
-
-/* ===== GAME SCREEN ===== */
-.game-header {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding: 0 4px;
-}
-
-.score-display {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(0,0,0,0.3);
-  padding: 8px 16px;
-  border-radius: 30px;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(212,160,23,0.2);
-}
-.score-icon { font-size: 1.2rem; }
-.score-value {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: var(--gold-bright);
-}
-
-.question-counter {
-  font-size: 0.9rem;
-  color: var(--sand);
-  background: rgba(0,0,0,0.3);
-  padding: 8px 16px;
-  border-radius: 30px;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.1);
-}
-
-.timer-container {
-  width: 100%;
-  margin-bottom: 20px;
-  position: relative;
-}
-.timer-bar-bg {
-  width: 100%;
-  height: 8px;
-  background: rgba(0,0,0,0.4);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.timer-bar {
-  height: 100%;
-  border-radius: 10px;
-  transition: width 0.1s linear;
-  background: linear-gradient(90deg, var(--correct), var(--gold-bright));
-}
-.timer-bar.warning {
-  background: linear-gradient(90deg, var(--accent-orange), var(--wrong));
-}
-.timer-bar.danger {
-  background: var(--wrong);
-  animation: timerPulse 0.5s ease-in-out infinite;
-}
-@keyframes timerPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-.timer-text {
-  position: absolute;
-  top: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--sand-light);
-}
-
-.category-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-  backdrop-filter: blur(8px);
-}
-.cat-general { background: rgba(0,206,209,0.2); color: var(--accent-teal); border: 1px solid rgba(0,206,209,0.3); }
-.cat-puzzle { background: rgba(255,107,53,0.2); color: var(--accent-orange); border: 1px solid rgba(255,107,53,0.3); }
-.cat-islamic { background: rgba(46,204,113,0.2); color: var(--correct); border: 1px solid rgba(46,204,113,0.3); }
-.cat-history { background: rgba(212,160,23,0.2); color: var(--gold-bright); border: 1px solid rgba(212,160,23,0.3); }
-
-.question-card {
-  width: 100%;
-  background: rgba(10,5,25,0.7);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(212,160,23,0.15);
-  border-radius: 24px;
-  padding: 28px 24px;
-  margin-bottom: 16px;
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-}
-.question-text {
-  font-family: 'Amiri', serif;
-  font-size: 1.35rem;
-  line-height: 1.9;
-  color: var(--text-light);
-  font-weight: 400;
-}
-
-.answers-grid {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.answer-btn {
-  background: rgba(15,8,35,0.7);
-  backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(212,160,23,0.2);
-  border-radius: 16px;
-  padding: 16px 12px;
-  font-family: 'Tajawal', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-light);
-  cursor: pointer;
-  transition: all 0.25s;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  min-height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.answer-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, transparent, rgba(212,160,23,0.05));
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-.answer-btn:hover:not(.disabled) {
-  border-color: var(--gold);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-}
-.answer-btn:hover:not(.disabled)::before { opacity: 1; }
-
-.answer-btn.correct {
-  background: rgba(46,204,113,0.25) !important;
-  border-color: var(--correct) !important;
-  color: var(--correct) !important;
-  animation: correctPop 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-}
-.answer-btn.wrong {
-  background: rgba(231,76,60,0.25) !important;
-  border-color: var(--wrong) !important;
-  color: var(--wrong) !important;
-  animation: shake 0.4s ease;
-}
-.answer-btn.disabled {
-  pointer-events: none;
-  opacity: 0.5;
-}
-.answer-btn.reveal-correct {
-  background: rgba(46,204,113,0.15) !important;
-  border-color: var(--correct) !important;
-}
-
-@keyframes correctPop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-8px); }
-  75% { transform: translateX(8px); }
-}
-
-.streak-display {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  background: linear-gradient(135deg, var(--accent-orange), var(--wrong));
-  padding: 8px 24px;
-  border-radius: 30px;
-  font-weight: 800;
-  font-size: 1rem;
-  opacity: 0;
-  transition: all 0.3s;
-  box-shadow: 0 4px 20px rgba(255,107,53,0.5);
-}
-.streak-display.visible {
-  opacity: 1;
-  animation: streakBounce 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-}
-@keyframes streakBounce {
-  from { transform: translateX(-50%) scale(0.5); }
-  to { transform: translateX(-50%) scale(1); }
-}
-
-/* ===== RESULTS SCREEN ===== */
-.results-card {
-  width: 100%;
-  background: rgba(10,5,25,0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(212,160,23,0.2);
-  border-radius: 28px;
-  padding: 32px 24px;
-  text-align: center;
-  box-shadow: 0 20px 80px rgba(0,0,0,0.5);
-}
-
-.result-emoji {
-  font-size: 80px;
-  margin-bottom: 12px;
-  animation: resultBounce 1s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-}
-@keyframes resultBounce {
-  0% { transform: scale(0); }
-  60% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-.result-title {
-  font-family: 'Amiri', serif;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--gold-bright);
-  margin-bottom: 8px;
-}
-.result-score {
-  font-size: 3.5rem;
-  font-weight: 900;
-  background: linear-gradient(135deg, var(--gold-bright), var(--sand));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 4px;
-}
-.result-label {
-  font-size: 0.9rem;
-  color: var(--sand);
-  margin-bottom: 20px;
-}
-
-.new-record {
-  display: none;
-  background: linear-gradient(135deg, var(--gold), var(--accent-orange));
-  color: var(--brown-dark);
-  padding: 8px 24px;
-  border-radius: 30px;
-  font-weight: 800;
-  font-size: 1rem;
-  margin-bottom: 16px;
-  animation: newRecordPulse 1.5s ease-in-out infinite;
-}
-.new-record.visible { display: inline-block; }
-@keyframes newRecordPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(212,160,23,0.5); }
-  50% { box-shadow: 0 0 40px rgba(212,160,23,0.8); }
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin: 20px 0;
-}
-.stat-item {
-  background: rgba(255,255,255,0.05);
-  border-radius: 16px;
-  padding: 14px 8px;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--gold-bright);
-}
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--sand);
-  margin-top: 4px;
-}
-
-.result-buttons {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-  width: 100%;
-}
-.btn-result {
-  flex: 1;
-  padding: 14px;
-  border-radius: 16px;
-  font-family: 'Tajawal', sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.btn-retry {
-  background: linear-gradient(135deg, var(--gold), var(--sand-dark));
-  color: var(--brown-dark);
-}
-.btn-share {
-  background: rgba(255,255,255,0.1);
-  color: var(--text-light);
-  border: 1px solid rgba(255,255,255,0.2) !important;
-}
-.btn-result:hover { transform: translateY(-2px); }
-
-.share-toast {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: var(--correct);
-  color: #fff;
-  padding: 12px 28px;
-  border-radius: 30px;
-  font-weight: 700;
-  z-index: 100;
-  transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-  box-shadow: 0 8px 30px rgba(46,204,113,0.4);
-}
-.share-toast.visible { transform: translateX(-50%) translateY(0); }
-
-.copyright {
-  position: fixed;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.7rem;
-  color: rgba(222,184,135,0.4);
-  z-index: 5;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.bonus-popup {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  z-index: 50;
-  font-size: 2.5rem;
-  font-weight: 900;
-  color: var(--gold-bright);
-  text-shadow: 0 0 30px rgba(212,160,23,0.8);
-  pointer-events: none;
-  transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-}
-.bonus-popup.visible {
-  transform: translate(-50%, -50%) scale(1);
-}
-.bonus-popup.hide {
-  transform: translate(-50%, -100%) scale(0.5);
-  opacity: 0;
-}
-
-.particles-container {
-  position: fixed;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  overflow: hidden;
-}
-.particle {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-@media (max-width: 500px) {
-  .game-title { font-size: 2.2rem; }
-  .game-logo { width: 110px; height: 110px; }
-  .logo-icon { font-size: 48px; }
-  .question-text { font-size: 1.15rem; }
-  .answers-grid { gap: 8px; }
-  .answer-btn { padding: 14px 10px; font-size: 0.9rem; min-height: 52px; }
-  .question-card { padding: 20px 16px; }
-  .result-score { font-size: 2.8rem; }
-  .result-emoji { font-size: 60px; }
-  .stats-grid { gap: 8px; }
-  .stat-value { font-size: 1.2rem; }
-  .btn-start { padding: 16px 48px; font-size: 1.2rem; }
-}
-</style>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<script src="lib/three.min.js"></script>
 </head>
 <body>
 
-<canvas id="three-canvas"></canvas>
-<div class="overlay"></div>
+<canvas id="three-canvas" aria-hidden="true"></canvas>
+<div class="overlay" aria-hidden="true"></div>
 
-<div class="streak-display" id="streakDisplay">🔥 سلسلة: <span id="streakCount">0</span></div>
-<div class="bonus-popup" id="bonusPopup"></div>
-<div class="particles-container" id="particles"></div>
+<!-- Top bar (mute + back) -->
+<div class="top-bar">
+  <button class="icon-btn" id="btnMute" onclick="toggleMute()" aria-label="كتم الصوت" aria-pressed="false" title="كتم/تشغيل الصوت (M)">🔊</button>
+  <button class="icon-btn" id="btnBack" onclick="backToStart()" aria-label="العودة للقائمة" title="القائمة الرئيسية (Esc)">🏠</button>
+</div>
+
+<div class="streak-display" id="streakDisplay" aria-live="polite">🔥 سلسلة: <span id="streakCount">0</span></div>
+<div class="bonus-popup" id="bonusPopup" aria-hidden="true"></div>
+<div class="particles-container" id="particles" aria-hidden="true"></div>
 
 <div class="game-container">
+
   <!-- START SCREEN -->
-  <div class="screen active" id="startScreen">
-    <div class="game-logo"><span class="logo-icon">🏜️</span></div>
+  <div class="screen active" id="startScreen" role="region" aria-label="القائمة الرئيسية">
+    <div class="game-logo" aria-hidden="true"><span class="logo-icon">🏜️</span></div>
     <h1 class="game-title">تحدي العقول</h1>
     <p class="game-subtitle">مسابقة ثقافية تختبر سرعة بديهتك</p>
-    <div class="best-record" id="bestRecordBox">
+
+    <div class="best-record">
       <div class="best-record-label">🏆 أفضل إنجاز</div>
       <div class="best-record-value" id="bestRecordValue">0</div>
     </div>
-    <button class="btn-start" id="btnStart" onclick="startGame()">ابدأ التحدي</button>
+
+    <div class="daily-streak" id="dailyStreak"></div>
+
+    <div class="modes-grid">
+      <button class="mode-btn" id="btnClassic" onclick="chooseMode('classic')" aria-label="ابدأ الوضع الكلاسيكي">🎯 كلاسيكي</button>
+      <button class="mode-btn" id="btnDaily" onclick="chooseMode('daily')" aria-label="ابدأ تحدي اليوم">📅 تحدي اليوم</button>
+    </div>
+
+    <div class="secondary-buttons">
+      <button class="btn-secondary" onclick="showAchievements()" aria-label="عرض الإنجازات">🏅 الإنجازات</button>
+      <button class="btn-secondary" onclick="showHistory()" aria-label="عرض سجل الجولات">📊 السجل</button>
+      <button class="btn-secondary" onclick="showSettings()" aria-label="الإعدادات">⚙️ الإعدادات</button>
+    </div>
+  </div>
+
+  <!-- DIFFICULTY SCREEN -->
+  <div class="screen" id="difficultyScreen" role="region" aria-label="اختر الصعوبة">
+    <h2 class="section-title">اختر مستوى التحدي</h2>
+    <div class="difficulty-list">
+      <button class="difficulty-btn" onclick="chooseDifficulty('easy')" aria-label="مستوى سهل">
+        <div class="difficulty-icon">🟢</div>
+        <div class="difficulty-info">
+          <div class="difficulty-label">سهل</div>
+          <div class="difficulty-meta">10 أسئلة • 20 ثانية لكل سؤال</div>
+        </div>
+      </button>
+      <button class="difficulty-btn" onclick="chooseDifficulty('medium')" aria-label="مستوى متوسط">
+        <div class="difficulty-icon">🟡</div>
+        <div class="difficulty-info">
+          <div class="difficulty-label">متوسط</div>
+          <div class="difficulty-meta">15 سؤال • 15 ثانية لكل سؤال</div>
+        </div>
+      </button>
+      <button class="difficulty-btn" onclick="chooseDifficulty('hard')" aria-label="مستوى صعب">
+        <div class="difficulty-icon">🔴</div>
+        <div class="difficulty-info">
+          <div class="difficulty-label">صعب</div>
+          <div class="difficulty-meta">20 سؤال • 10 ثوانٍ • نقاط ×1.5</div>
+        </div>
+      </button>
+    </div>
+    <button class="btn-secondary" onclick="backToStart()">← رجوع</button>
   </div>
 
   <!-- GAME SCREEN -->
-  <div class="screen" id="gameScreen">
+  <div class="screen" id="gameScreen" role="region" aria-label="شاشة اللعب">
     <div class="game-header">
       <div class="score-display">
-        <span class="score-icon">⭐</span>
-        <span class="score-value" id="scoreValue">0</span>
+        <span class="score-icon" aria-hidden="true">⭐</span>
+        <span class="score-value" id="scoreValue" aria-live="polite" aria-label="النقاط">0</span>
       </div>
-      <div class="question-counter" id="questionCounter">1 / 15</div>
+      <div class="mode-indicator" id="modeIndicator"></div>
+      <div class="question-counter" id="questionCounter" aria-live="polite">1 / 15</div>
     </div>
-    <div class="timer-container">
-      <div class="timer-text" id="timerText">15</div>
+
+    <div class="timer-container" aria-label="العداد الزمني">
+      <div class="timer-text" id="timerText" aria-live="off">15</div>
       <div class="timer-bar-bg">
         <div class="timer-bar" id="timerBar"></div>
       </div>
     </div>
-    <div class="category-badge" id="categoryBadge"></div>
-    <div class="question-card">
-      <div class="question-text" id="questionText"></div>
+
+    <div class="question-row">
+      <div class="category-badge" id="categoryBadge"></div>
+      <button class="btn-fifty" id="btnFifty" onclick="useFifty()" aria-label="مساعدة احذف إجابتين خاطئتين" title="50:50 (H)">✂️ 50:50</button>
     </div>
-    <div class="answers-grid" id="answersGrid"></div>
+
+    <div class="question-card">
+      <div class="question-text" id="questionText" aria-live="polite"></div>
+    </div>
+
+    <div class="answers-grid" id="answersGrid" role="group" aria-label="خيارات الإجابة"></div>
+
+    <div class="explanation-card" id="explanationCard">
+      <div class="explanation-icon" aria-hidden="true">💡</div>
+      <div class="explanation-text" id="explanationText"></div>
+      <button class="explanation-next" onclick="advanceQuestion()" aria-label="الانتقال للسؤال التالي">التالي ←</button>
+    </div>
   </div>
 
   <!-- RESULTS SCREEN -->
-  <div class="screen" id="resultsScreen">
+  <div class="screen" id="resultsScreen" role="region" aria-label="نتيجة الجولة">
     <div class="results-card">
-      <div class="result-emoji" id="resultEmoji">🏆</div>
+      <div class="result-emoji" id="resultEmoji" aria-hidden="true">🏆</div>
       <div class="result-title" id="resultTitle">أحسنت!</div>
-      <div class="result-score" id="resultScore">0</div>
+      <div class="result-score" id="resultScore" aria-label="النتيجة">0</div>
       <div class="result-label">نقطة</div>
       <div class="new-record" id="newRecord">🎉 رقم قياسي جديد!</div>
       <div class="stats-grid">
@@ -659,863 +142,80 @@ body {
         </div>
       </div>
       <div class="result-buttons">
-        <button class="btn-result btn-retry" onclick="restartGame()">🔄 أعد التحدي</button>
-        <button class="btn-result btn-share" onclick="shareResult()">📤 شارك النتيجة</button>
+        <button class="btn-result btn-retry" onclick="restartGame()" aria-label="ابدأ تحدياً جديداً">🔄 جولة جديدة</button>
+        <button class="btn-result btn-share" onclick="shareResult()" aria-label="شارك النتيجة">📤 شارك</button>
       </div>
     </div>
   </div>
+
+  <!-- ACHIEVEMENTS SCREEN -->
+  <div class="screen" id="achievementsScreen" role="region" aria-label="الإنجازات">
+    <h2 class="section-title">🏅 الإنجازات</h2>
+    <div class="achievements-meta">المفتوحة: <span id="achievementsCount">0 / 0</span></div>
+    <div class="list-container" id="achievementsList"></div>
+    <button class="btn-secondary" onclick="backToStart()" style="margin-top: 14px;">← رجوع</button>
+  </div>
+
+  <!-- HISTORY SCREEN -->
+  <div class="screen" id="historyScreen" role="region" aria-label="سجل الجولات">
+    <h2 class="section-title">📊 سجل الجولات</h2>
+    <div class="list-container" id="historyList"></div>
+    <button class="btn-secondary" onclick="backToStart()" style="margin-top: 14px;">← رجوع</button>
+  </div>
+
+  <!-- SETTINGS SCREEN -->
+  <div class="screen" id="settingsScreen" role="region" aria-label="الإعدادات">
+    <h2 class="section-title">⚙️ الإعدادات</h2>
+    <div class="settings-list">
+      <div class="setting-group">
+        <div class="setting-label">السمة</div>
+        <div class="theme-options">
+          <label class="theme-option">
+            <input type="radio" name="theme" value="night" checked>
+            <span>🌙 ليلي</span>
+          </label>
+          <label class="theme-option">
+            <input type="radio" name="theme" value="day">
+            <span>☀️ نهاري</span>
+          </label>
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <label for="settingMute" class="setting-label" style="margin: 0; cursor: pointer;">كتم الصوت</label>
+          <label style="cursor: pointer;">
+            <input type="checkbox" id="settingMute" class="setting-toggle" aria-label="كتم الصوت">
+            <span class="toggle-switch" role="presentation"></span>
+          </label>
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">اختصارات لوحة المفاتيح</div>
+        <div style="font-size: 0.85rem; color: var(--sand); line-height: 1.8;">
+          <div><kbd>1-4</kbd> اختيار الإجابة</div>
+          <div><kbd>Enter</kbd> / <kbd>Space</kbd> التالي</div>
+          <div><kbd>M</kbd> كتم/تشغيل الصوت</div>
+          <div><kbd>H</kbd> استخدام 50:50</div>
+          <div><kbd>Esc</kbd> العودة للقائمة</div>
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">إعادة التعيين</div>
+        <p style="font-size: 0.85rem; color: var(--sand); margin-bottom: 8px;">سيتم حذف جميع النتائج والإنجازات والسجل.</p>
+        <button class="btn-danger" onclick="resetAllData()">🗑️ حذف جميع البيانات</button>
+      </div>
+    </div>
+    <button class="btn-secondary" onclick="backToStart()" style="margin-top: 14px;">← رجوع</button>
+  </div>
+
 </div>
 
 <div class="copyright">تصميم عبدالكريم العبود • abo.saleh.g@gmail.com</div>
-<div class="share-toast" id="shareToast">✅ تم نسخ النتيجة!</div>
-
-<script>
-// ============================================================
-// QUESTIONS DATABASE - 80 unique questions across 4 categories
-// ============================================================
-const allQuestions = [
-  // ===== ثقافة عامة ومعلومات (20 سؤال) =====
-  {cat:"general", q:"ما هو أصلب معدن طبيعي على وجه الأرض؟", a:["الألماس","الذهب","التيتانيوم","الحديد"], c:0},
-  {cat:"general", q:"ما هي أكبر خلية في جسم الإنسان؟", a:["البويضة","خلية الكبد","الخلية العصبية","خلية العضلات"], c:0},
-  {cat:"general", q:"كم عدد العظام في جسم الإنسان البالغ؟", a:["206","210","198","215"], c:0},
-  {cat:"general", q:"ما هو العنصر الكيميائي الأكثر وفرة في الكون؟", a:["الهيدروجين","الأكسجين","الهيليوم","الكربون"], c:0},
-  {cat:"general", q:"ما هي الدولة الوحيدة التي علمها ليس مستطيلاً؟", a:["نيبال","سويسرا","بوتان","المالديف"], c:0},
-  {cat:"general", q:"كم تبلغ سرعة الضوء تقريباً بالكيلومتر في الثانية؟", a:["300,000","150,000","500,000","200,000"], c:0},
-  {cat:"general", q:"ما هو أطول نهر في العالم؟", a:["نهر النيل","نهر الأمازون","نهر المسيسيبي","نهر اليانغتسي"], c:0},
-  {cat:"general", q:"ما هو الغاز الذي يشكل حوالي 78% من الغلاف الجوي؟", a:["النيتروجين","الأكسجين","ثاني أكسيد الكربون","الأرجون"], c:0},
-  {cat:"general", q:"ما هو أصغر كوكب في المجموعة الشمسية؟", a:["عطارد","المريخ","بلوتو","الزهرة"], c:0},
-  {cat:"general", q:"ما هي وحدة قياس شدة الصوت؟", a:["ديسيبل","هيرتز","واط","أوم"], c:0},
-  {cat:"general", q:"ما هو الحيوان الوحيد الذي لا يستطيع القفز؟", a:["الفيل","وحيد القرن","فرس النهر","الزرافة"], c:0},
-  {cat:"general", q:"كم عدد ألوان قوس قزح؟", a:["7","6","8","5"], c:0},
-  {cat:"general", q:"ما هو المعدن الذي يوجد في حالة سائلة عند درجة حرارة الغرفة؟", a:["الزئبق","الرصاص","القصدير","الغاليوم"], c:0},
-  {cat:"general", q:"ما هي أكبر صحراء في العالم؟", a:["الصحراء الكبرى","صحراء القطب الجنوبي","صحراء الربع الخالي","صحراء جوبي"], c:0},
-  {cat:"general", q:"كم عدد أسنان الإنسان البالغ؟", a:["32","28","30","34"], c:0},
-  {cat:"general", q:"ما هي المادة التي تغطي أسنان الإنسان؟", a:["المينا","العاج","الكالسيوم","الفلور"], c:0},
-  {cat:"general", q:"ما هو العضو الأكبر في جسم الإنسان؟", a:["الجلد","الكبد","الرئة","الأمعاء"], c:0},
-  {cat:"general", q:"كم لتراً من الدم يضخها القلب يومياً تقريباً؟", a:["7000","3000","5000","10000"], c:0},
-  {cat:"general", q:"ما الحيوان الذي يملك أكبر عين في المملكة الحيوانية؟", a:["الحبار العملاق","الحوت الأزرق","النعامة","البومة"], c:0},
-  {cat:"general", q:"ما هو الكوكب الأكثر حرارة في المجموعة الشمسية؟", a:["الزهرة","عطارد","المشتري","المريخ"], c:0},
-
-  // ===== ألغاز ذكاء وتفكير (20 سؤال) =====
-  {cat:"puzzle", q:"شيء يمشي بلا أرجل ويبكي بلا عيون، ما هو؟", a:["السحابة","الساعة","الريح","النهر"], c:0},
-  {cat:"puzzle", q:"ما هو الشيء الذي كلما أخذت منه كبر؟", a:["الحفرة","العلم","الحب","المال"], c:0},
-  {cat:"puzzle", q:"أنا لي أوراق لكنني لست شجرة، ولي غلاف لكنني لست هدية، من أنا؟", a:["الكتاب","المجلة","الرسالة","الصحيفة"], c:0},
-  {cat:"puzzle", q:"ما هو العدد الذي إذا ضربته في نفسه أعطاك 12321؟", a:["111","121","131","101"], c:0},
-  {cat:"puzzle", q:"شيء موجود في الليل ثلاث مرات وفي النهار مرة واحدة، ما هو؟", a:["حرف اللام","القمر","النجمة","الظلام"], c:0},
-  {cat:"puzzle", q:"إذا كان عمر الأب ثلاثة أضعاف ابنه والفرق 30 سنة، كم عمر الابن؟", a:["15","10","20","12"], c:0},
-  {cat:"puzzle", q:"ما هو الشيء الذي يوجد وسط مكة؟", a:["حرف الكاف","الكعبة","البئر","الحجر"], c:0},
-  {cat:"puzzle", q:"رقم إذا ضربته في أي رقم يبقى الناتج نفس الرقم، ما هو؟", a:["1","0","10","100"], c:0},
-  {cat:"puzzle", q:"ما هو الشيء الذي يسمع بلا أذن ويتكلم بلا لسان؟", a:["الهاتف","الراديو","التلفاز","الحاسوب"], c:0},
-  {cat:"puzzle", q:"شيء تراه في الظلام ولا تراه في النور، ما هو؟", a:["النجوم","القمر","الخوف","العتمة"], c:0},
-  {cat:"puzzle", q:"له رقبة ولا رأس له، ما هو؟", a:["القارورة","القميص","الطريق","العود"], c:0},
-  {cat:"puzzle", q:"ما هو الشيء الذي إذا غليته جمد؟", a:["البيض","الماء","الحليب","الشمع"], c:0},
-  {cat:"puzzle", q:"5 + 5 = 10، ما الرقم الذي إذا أضفته للنتيجة وقسمتها على 5 تحصل على 4؟", a:["10","5","15","20"], c:0},
-  {cat:"puzzle", q:"ما الشيء الذي يخترق الزجاج دون أن يكسره؟", a:["الضوء","الصوت","الهواء","الماء"], c:0},
-  {cat:"puzzle", q:"إذا كان أمس بعد غدٍ هو الأحد، فما هو اليوم؟", a:["الجمعة","السبت","الخميس","الأربعاء"], c:0},
-  {cat:"puzzle", q:"ما الذي يزداد ولا ينقص أبداً؟", a:["العمر","المال","الماء","العلم"], c:0},
-  {cat:"puzzle", q:"أخت خالك وليست خالتك، من هي؟", a:["أمك","عمتك","جارتك","صديقتك"], c:0},
-  {cat:"puzzle", q:"بيت لا أبواب له ولا نوافذ، ما هو؟", a:["بيت الشعر","بيت العنكبوت","بيت النمل","بيت الثلج"], c:0},
-  {cat:"puzzle", q:"ما الشيء الذي تملكه لكن الآخرين يستخدمونه أكثر منك؟", a:["اسمك","هاتفك","سيارتك","بيتك"], c:0},
-  {cat:"puzzle", q:"عددٌ من رقمين حاصل ضرب رقميه 8 ومجموعهما 6، ما هو؟", a:["24","42","18","81"], c:0},
-
-  // ===== أسئلة إسلامية (20 سؤال) =====
-  {cat:"islamic", q:"ما هي أطول سورة في القرآن الكريم؟", a:["البقرة","آل عمران","النساء","المائدة"], c:0},
-  {cat:"islamic", q:"كم عدد أركان الإسلام؟", a:["5","4","6","7"], c:0},
-  {cat:"islamic", q:"من هو أول مؤذن في الإسلام؟", a:["بلال بن رباح","عبدالله بن مسعود","أبو بكر الصديق","عمر بن الخطاب"], c:0},
-  {cat:"islamic", q:"في أي سنة هجرية وقعت غزوة بدر الكبرى؟", a:["2 هـ","3 هـ","1 هـ","4 هـ"], c:0},
-  {cat:"islamic", q:"ما هي السورة التي تُسمى قلب القرآن؟", a:["يس","الرحمن","الملك","الكهف"], c:0},
-  {cat:"islamic", q:"كم مرة ذُكر اسم محمد ﷺ في القرآن الكريم؟", a:["4","3","5","7"], c:0},
-  {cat:"islamic", q:"ما هو الركن الخامس من أركان الإسلام؟", a:["الحج","الزكاة","الصوم","الصلاة"], c:0},
-  {cat:"islamic", q:"من هو النبي الذي ابتلعه الحوت؟", a:["يونس","أيوب","إدريس","إلياس"], c:0},
-  {cat:"islamic", q:"كم عدد سور القرآن الكريم؟", a:["114","112","120","110"], c:0},
-  {cat:"islamic", q:"ما اسم ناقة النبي ﷺ؟", a:["القصواء","العضباء","السمراء","البيضاء"], c:0},
-  {cat:"islamic", q:"من هو أول من أسلم من الصبيان؟", a:["علي بن أبي طالب","الزبير بن العوام","سعد بن أبي وقاص","طلحة بن عبيدالله"], c:0},
-  {cat:"islamic", q:"ما هي السورة التي لا تبدأ بالبسملة؟", a:["التوبة","الفاتحة","الإخلاص","الفلق"], c:0},
-  {cat:"islamic", q:"كم عدد أبواب الجنة؟", a:["8","7","9","10"], c:0},
-  {cat:"islamic", q:"ما هو أول مسجد بُني في الإسلام؟", a:["مسجد قباء","المسجد النبوي","المسجد الحرام","المسجد الأقصى"], c:0},
-  {cat:"islamic", q:"من هو خاتم الأنبياء والمرسلين؟", a:["محمد ﷺ","عيسى","موسى","إبراهيم"], c:0},
-  {cat:"islamic", q:"ما أول ما نزل من القرآن الكريم؟", a:["اقرأ","الفاتحة","المدثر","المزمل"], c:0},
-  {cat:"islamic", q:"كم سنة استغرقت الدعوة السرية في مكة؟", a:["3 سنوات","5 سنوات","2 سنتان","4 سنوات"], c:0},
-  {cat:"islamic", q:"ما اسم غار حراء الذي نزل فيه الوحي على النبي ﷺ؟", a:["غار حراء","غار ثور","غار هند","غار المغارة"], c:0},
-  {cat:"islamic", q:"من هو النبي الذي بنى الكعبة مع ابنه إسماعيل؟", a:["إبراهيم","نوح","آدم","إسماعيل"], c:0},
-  {cat:"islamic", q:"ما هي السورة التي تعدل ثلث القرآن؟", a:["الإخلاص","الفاتحة","يس","الملك"], c:0},
-
-  // ===== تاريخ وجغرافيا (20 سؤال) =====
-  {cat:"history", q:"في أي عام تأسست المملكة العربية السعودية؟", a:["1932","1925","1945","1920"], c:0},
-  {cat:"history", q:"ما هي عاصمة أستراليا؟", a:["كانبرا","سيدني","ملبورن","بريسبن"], c:0},
-  {cat:"history", q:"من هو مؤسس الدولة الأموية؟", a:["معاوية بن أبي سفيان","عبدالملك بن مروان","يزيد بن معاوية","مروان بن الحكم"], c:0},
-  {cat:"history", q:"ما هي أصغر قارة في العالم من حيث المساحة؟", a:["أوقيانوسيا","أوروبا","أمريكا الجنوبية","أفريقيا"], c:0},
-  {cat:"history", q:"في أي سنة سقطت الأندلس؟", a:["1492م","1453م","1500م","1389م"], c:0},
-  {cat:"history", q:"ما هي أعلى قمة جبلية في العالم؟", a:["إيفرست","كي 2","كانشينجونغا","لوتسي"], c:0},
-  {cat:"history", q:"من هو القائد المسلم الذي فتح القسطنطينية؟", a:["محمد الفاتح","صلاح الدين","طارق بن زياد","خالد بن الوليد"], c:0},
-  {cat:"history", q:"ما هو أكبر محيط في العالم؟", a:["المحيط الهادئ","المحيط الأطلسي","المحيط الهندي","المحيط المتجمد"], c:0},
-  {cat:"history", q:"في أي عام اندلعت الحرب العالمية الأولى؟", a:["1914","1918","1910","1916"], c:0},
-  {cat:"history", q:"ما هي الدولة العربية الأكبر مساحة؟", a:["الجزائر","السعودية","السودان","ليبيا"], c:0},
-  {cat:"history", q:"من بنى أهرامات الجيزة؟", a:["الفراعنة","الرومان","الإغريق","الفرس"], c:0},
-  {cat:"history", q:"ما هي عاصمة كندا؟", a:["أوتاوا","تورنتو","مونتريال","فانكوفر"], c:0},
-  {cat:"history", q:"في أي قرن وقعت الثورة الفرنسية؟", a:["القرن 18","القرن 17","القرن 19","القرن 16"], c:0},
-  {cat:"history", q:"ما هو أطول جدار في التاريخ؟", a:["سور الصين العظيم","جدار هادريان","جدار برلين","سور بابل"], c:0},
-  {cat:"history", q:"ما هي الدولة التي تضم أكبر عدد من السكان في العالم؟", a:["الهند","الصين","أمريكا","إندونيسيا"], c:0},
-  {cat:"history", q:"ما هو البحر الذي يفصل بين أوروبا وأفريقيا؟", a:["البحر الأبيض المتوسط","البحر الأحمر","البحر الأسود","بحر العرب"], c:0},
-  {cat:"history", q:"من هو مكتشف قانون الجاذبية؟", a:["نيوتن","آينشتاين","غاليليو","كوبرنيكوس"], c:0},
-  {cat:"history", q:"ما هي الحضارة التي اخترعت الكتابة المسمارية؟", a:["السومرية","البابلية","المصرية","الفينيقية"], c:0},
-  {cat:"history", q:"في أي مدينة يقع برج إيفل؟", a:["باريس","لندن","روما","برلين"], c:0},
-  {cat:"history", q:"ما اسم المضيق الذي يربط البحر الأبيض المتوسط بالمحيط الأطلسي؟", a:["مضيق جبل طارق","مضيق هرمز","مضيق باب المندب","مضيق ملقا"], c:0},
-];
-
-// ============================================================
-// AUDIO ENGINE - Web Audio API synthesized sounds
-// ============================================================
-class AudioEngine {
-  constructor() {
-    this.ctx = null;
-    this.initialized = false;
-  }
-
-  init() {
-    if (this.initialized) return;
-    try {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      this.initialized = true;
-    } catch(e) { console.log("Audio not available"); }
-  }
-
-  play(type) {
-    if (!this.ctx) return;
-    try {
-      switch(type) {
-        case 'correct': this._playCorrect(); break;
-        case 'wrong': this._playWrong(); break;
-        case 'tick': this._playTick(); break;
-        case 'start': this._playStart(); break;
-        case 'record': this._playRecord(); break;
-        case 'timeup': this._playTimeUp(); break;
-        case 'streak': this._playStreak(); break;
-        case 'click': this._playClick(); break;
-      }
-    } catch(e) {}
-  }
-
-  _playCorrect() {
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.connect(gain); gain.connect(this.ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(523, t);
-    osc.frequency.setValueAtTime(659, t + 0.1);
-    osc.frequency.setValueAtTime(784, t + 0.2);
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialDecayToValueAtTime?.(0.01, t + 0.4) || gain.gain.setValueAtTime(0.01, t + 0.4);
-    osc.start(t); osc.stop(t + 0.4);
-  }
-
-  _playWrong() {
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.connect(gain); gain.connect(this.ctx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(200, t);
-    osc.frequency.setValueAtTime(150, t + 0.15);
-    gain.gain.setValueAtTime(0.2, t);
-    gain.gain.setValueAtTime(0.01, t + 0.35);
-    osc.start(t); osc.stop(t + 0.35);
-  }
-
-  _playTick() {
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.connect(gain); gain.connect(this.ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, t);
-    gain.gain.setValueAtTime(0.08, t);
-    gain.gain.setValueAtTime(0.0, t + 0.05);
-    osc.start(t); osc.stop(t + 0.06);
-  }
-
-  _playStart() {
-    const t = this.ctx.currentTime;
-    [440, 554, 659, 880].forEach((f, i) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.connect(gain); gain.connect(this.ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, t + i * 0.12);
-      gain.gain.setValueAtTime(0.2, t + i * 0.12);
-      gain.gain.setValueAtTime(0.01, t + i * 0.12 + 0.15);
-      osc.start(t + i * 0.12); osc.stop(t + i * 0.12 + 0.15);
-    });
-  }
-
-  _playRecord() {
-    const t = this.ctx.currentTime;
-    [523, 659, 784, 1047, 784, 1047].forEach((f, i) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.connect(gain); gain.connect(this.ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, t + i * 0.1);
-      gain.gain.setValueAtTime(0.25, t + i * 0.1);
-      gain.gain.setValueAtTime(0.01, t + i * 0.1 + 0.12);
-      osc.start(t + i * 0.1); osc.stop(t + i * 0.1 + 0.15);
-    });
-  }
-
-  _playTimeUp() {
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.connect(gain); gain.connect(this.ctx.destination);
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(300, t);
-    osc.frequency.setValueAtTime(200, t + 0.2);
-    gain.gain.setValueAtTime(0.15, t);
-    gain.gain.setValueAtTime(0.01, t + 0.4);
-    osc.start(t); osc.stop(t + 0.4);
-  }
-
-  _playStreak() {
-    const t = this.ctx.currentTime;
-    [660, 880, 1100].forEach((f, i) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.connect(gain); gain.connect(this.ctx.destination);
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(f, t + i * 0.08);
-      gain.gain.setValueAtTime(0.2, t + i * 0.08);
-      gain.gain.setValueAtTime(0.01, t + i * 0.08 + 0.1);
-      osc.start(t + i * 0.08); osc.stop(t + i * 0.08 + 0.12);
-    });
-  }
-
-  _playClick() {
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.connect(gain); gain.connect(this.ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, t);
-    gain.gain.setValueAtTime(0.1, t);
-    gain.gain.setValueAtTime(0.0, t + 0.04);
-    osc.start(t); osc.stop(t + 0.05);
-  }
-}
-
-const audio = new AudioEngine();
-
-// ============================================================
-// THREE.JS DESERT SCENE
-// ============================================================
-let scene, camera, renderer, stars = [], dunes = [];
-const clock = new THREE.Clock();
-
-function initThreeScene() {
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 8, 25);
-  camera.lookAt(0, 3, 0);
-
-  renderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById('three-canvas'),
-    antialias: true,
-    alpha: false
-  });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setClearColor(0x1a0a2e);
-
-  // Gradient sky
-  const skyGeo = new THREE.SphereGeometry(200, 32, 32);
-  const skyMat = new THREE.ShaderMaterial({
-    uniforms: {
-      topColor: { value: new THREE.Color(0x0a0520) },
-      midColor: { value: new THREE.Color(0x2d1b4e) },
-      bottomColor: { value: new THREE.Color(0xc4954a) },
-    },
-    vertexShader: `
-      varying vec3 vWorldPosition;
-      void main() {
-        vec4 worldPos = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPos.xyz;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 topColor;
-      uniform vec3 midColor;
-      uniform vec3 bottomColor;
-      varying vec3 vWorldPosition;
-      void main() {
-        float h = normalize(vWorldPosition).y;
-        vec3 col;
-        if (h > 0.0) {
-          col = mix(midColor, topColor, pow(h, 0.6));
-        } else {
-          col = mix(midColor, bottomColor, pow(-h, 0.4));
-        }
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `,
-    side: THREE.BackSide
-  });
-  scene.add(new THREE.Mesh(skyGeo, skyMat));
-
-  // Stars
-  const starGeometry = new THREE.BufferGeometry();
-  const starPositions = [];
-  const starSizes = [];
-  for (let i = 0; i < 600; i++) {
-    const theta = Math.random() * Math.PI * 0.7;
-    const phi = Math.random() * Math.PI * 2;
-    const r = 150 + Math.random() * 40;
-    starPositions.push(
-      r * Math.sin(theta) * Math.cos(phi),
-      r * Math.cos(theta) + 20,
-      r * Math.sin(theta) * Math.sin(phi)
-    );
-    starSizes.push(0.5 + Math.random() * 2);
-  }
-  starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
-  starGeometry.setAttribute('size', new THREE.Float32BufferAttribute(starSizes, 1));
-  
-  const starMat = new THREE.ShaderMaterial({
-    uniforms: { time: { value: 0 } },
-    vertexShader: `
-      attribute float size;
-      uniform float time;
-      varying float vAlpha;
-      void main() {
-        vAlpha = 0.5 + 0.5 * sin(time * 2.0 + position.x * 0.1);
-        vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (200.0 / -mvPos.z);
-        gl_Position = projectionMatrix * mvPos;
-      }
-    `,
-    fragmentShader: `
-      varying float vAlpha;
-      void main() {
-        float d = length(gl_PointCoord - vec2(0.5));
-        if (d > 0.5) discard;
-        float alpha = (1.0 - d * 2.0) * vAlpha;
-        gl_FragColor = vec4(1.0, 0.95, 0.8, alpha);
-      }
-    `,
-    transparent: true,
-    depthWrite: false
-  });
-  const starField = new THREE.Points(starGeometry, starMat);
-  scene.add(starField);
-  stars.push(starField);
-
-  // Moon
-  const moonGeo = new THREE.SphereGeometry(6, 32, 32);
-  const moonMat = new THREE.MeshBasicMaterial({ color: 0xfff8dc });
-  const moon = new THREE.Mesh(moonGeo, moonMat);
-  moon.position.set(-40, 60, -100);
-  scene.add(moon);
-
-  // Moon glow
-  const glowGeo = new THREE.SphereGeometry(8, 32, 32);
-  const glowMat = new THREE.MeshBasicMaterial({
-    color: 0xfff8dc,
-    transparent: true,
-    opacity: 0.15
-  });
-  const moonGlow = new THREE.Mesh(glowGeo, glowMat);
-  moonGlow.position.copy(moon.position);
-  scene.add(moonGlow);
-
-  // Desert ground
-  const groundGeo = new THREE.PlaneGeometry(400, 200, 80, 40);
-  const positions = groundGeo.attributes.position.array;
-  for (let i = 0; i < positions.length; i += 3) {
-    const x = positions[i];
-    const z = positions[i + 1];
-    positions[i + 2] = 
-      Math.sin(x * 0.03) * 3 +
-      Math.sin(z * 0.05) * 2 +
-      Math.sin(x * 0.08 + z * 0.06) * 1.5 +
-      Math.random() * 0.3;
-  }
-  groundGeo.computeVertexNormals();
-
-  const groundMat = new THREE.ShaderMaterial({
-    uniforms: {
-      color1: { value: new THREE.Color(0xc4954a) },
-      color2: { value: new THREE.Color(0x8b6914) },
-      time: { value: 0 }
-    },
-    vertexShader: `
-      varying vec2 vUv;
-      varying float vElevation;
-      void main() {
-        vUv = uv;
-        vElevation = position.z;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 color1;
-      uniform vec3 color2;
-      uniform float time;
-      varying vec2 vUv;
-      varying float vElevation;
-      void main() {
-        float mixVal = vElevation * 0.15 + 0.5;
-        mixVal += sin(vUv.x * 30.0 + time * 0.3) * 0.05;
-        vec3 col = mix(color2, color1, clamp(mixVal, 0.0, 1.0));
-        col += vec3(0.05, 0.03, 0.0) * (1.0 - vUv.y);
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `
-  });
-
-  const ground = new THREE.Mesh(groundGeo, groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -2;
-  scene.add(ground);
-  dunes.push(ground);
-
-  // Ambient + Directional lights
-  scene.add(new THREE.AmbientLight(0x4a3a6a, 0.4));
-  const dirLight = new THREE.DirectionalLight(0xfff0c0, 0.6);
-  dirLight.position.set(-20, 30, -50);
-  scene.add(dirLight);
-
-  // Floating sand particles
-  const sandGeo = new THREE.BufferGeometry();
-  const sandPos = [];
-  for (let i = 0; i < 200; i++) {
-    sandPos.push(
-      (Math.random() - 0.5) * 100,
-      Math.random() * 20 + 1,
-      (Math.random() - 0.5) * 60 - 10
-    );
-  }
-  sandGeo.setAttribute('position', new THREE.Float32BufferAttribute(sandPos, 3));
-  const sandMat = new THREE.PointsMaterial({
-    color: 0xdeb887,
-    size: 0.3,
-    transparent: true,
-    opacity: 0.4,
-    depthWrite: false
-  });
-  const sandParticles = new THREE.Points(sandGeo, sandMat);
-  scene.add(sandParticles);
-  dunes.push(sandParticles);
-
-  window.addEventListener('resize', onResize);
-  animate();
-}
-
-function onResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
-
-  // Animate stars
-  stars.forEach(s => {
-    if (s.material.uniforms) s.material.uniforms.time.value = t;
-  });
-
-  // Animate ground
-  dunes.forEach(d => {
-    if (d.material.uniforms && d.material.uniforms.time) {
-      d.material.uniforms.time.value = t;
-    }
-  });
-
-  // Slight camera sway
-  camera.position.x = Math.sin(t * 0.1) * 2;
-  camera.position.y = 8 + Math.sin(t * 0.15) * 0.5;
-
-  // Animate sand particles
-  if (dunes[1]) {
-    const pos = dunes[1].geometry.attributes.position.array;
-    for (let i = 0; i < pos.length; i += 3) {
-      pos[i] += Math.sin(t + i) * 0.02;
-      pos[i + 1] += Math.cos(t * 0.5 + i) * 0.005;
-      if (pos[i] > 50) pos[i] = -50;
-    }
-    dunes[1].geometry.attributes.position.needsUpdate = true;
-  }
-
-  renderer.render(scene, camera);
-}
-
-// ============================================================
-// GAME STATE & LOGIC
-// ============================================================
-const TOTAL_QUESTIONS = 15;
-const TIME_PER_QUESTION = 15;
-const BONUS_SPEED = 5;
-
-let gameState = {
-  currentQ: 0,
-  score: 0,
-  streak: 0,
-  maxStreak: 0,
-  correctCount: 0,
-  totalTime: 0,
-  questions: [],
-  timeLeft: TIME_PER_QUESTION,
-  timerInterval: null,
-  answered: false,
-  bestScore: 0
-};
-
-function loadBestScore() {
-  try {
-    const saved = localStorage.getItem('quiz_best_score');
-    if (saved) gameState.bestScore = parseInt(saved);
-  } catch(e) {}
-  document.getElementById('bestRecordValue').textContent = gameState.bestScore;
-}
-
-function saveBestScore(score) {
-  try {
-    if (score > gameState.bestScore) {
-      gameState.bestScore = score;
-      localStorage.setItem('quiz_best_score', score.toString());
-      return true;
-    }
-  } catch(e) {}
-  return false;
-}
-
-function shuffleArray(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function selectQuestions() {
-  const cats = { general: [], puzzle: [], islamic: [], history: [] };
-  allQuestions.forEach(q => cats[q.cat].push(q));
-
-  const perCat = Math.floor(TOTAL_QUESTIONS / 4);
-  const remainder = TOTAL_QUESTIONS % 4;
-
-  let selected = [];
-  const catKeys = ['general', 'puzzle', 'islamic', 'history'];
-  catKeys.forEach((cat, i) => {
-    const count = perCat + (i < remainder ? 1 : 0);
-    const shuffled = shuffleArray(cats[cat]);
-    selected = selected.concat(shuffled.slice(0, count));
-  });
-
-  // Shuffle answers for each question
-  return shuffleArray(selected).map(q => {
-    const correctAnswer = q.a[q.c];
-    const shuffledAnswers = shuffleArray(q.a);
-    const newCorrectIndex = shuffledAnswers.indexOf(correctAnswer);
-    return { ...q, a: shuffledAnswers, c: newCorrectIndex };
-  });
-}
-
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-function startGame() {
-  audio.init();
-  audio.play('start');
-
-  gameState.currentQ = 0;
-  gameState.score = 0;
-  gameState.streak = 0;
-  gameState.maxStreak = 0;
-  gameState.correctCount = 0;
-  gameState.totalTime = 0;
-  gameState.questions = selectQuestions();
-
-  document.getElementById('scoreValue').textContent = '0';
-  document.getElementById('streakDisplay').classList.remove('visible');
-
-  showScreen('gameScreen');
-  setTimeout(() => showQuestion(), 300);
-}
-
-function showQuestion() {
-  if (gameState.currentQ >= TOTAL_QUESTIONS) {
-    endGame();
-    return;
-  }
-
-  gameState.answered = false;
-  const q = gameState.questions[gameState.currentQ];
-
-  document.getElementById('questionCounter').textContent = 
-    `${gameState.currentQ + 1} / ${TOTAL_QUESTIONS}`;
-  document.getElementById('questionText').textContent = q.q;
-
-  // Category badge
-  const badge = document.getElementById('categoryBadge');
-  const catConfig = {
-    general: { cls: 'cat-general', icon: '💡', label: 'ثقافة عامة' },
-    puzzle: { cls: 'cat-puzzle', icon: '🧩', label: 'ألغاز ذكاء' },
-    islamic: { cls: 'cat-islamic', icon: '🕌', label: 'إسلامية' },
-    history: { cls: 'cat-history', icon: '🏛️', label: 'تاريخ وجغرافيا' }
-  };
-  const cc = catConfig[q.cat];
-  badge.className = `category-badge ${cc.cls}`;
-  badge.innerHTML = `${cc.icon} ${cc.label}`;
-
-  // Answers
-  const grid = document.getElementById('answersGrid');
-  grid.innerHTML = '';
-  q.a.forEach((ans, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'answer-btn';
-    btn.textContent = ans;
-    btn.onclick = () => selectAnswer(i);
-    grid.appendChild(btn);
-  });
-
-  // Timer
-  gameState.timeLeft = TIME_PER_QUESTION;
-  startTimer();
-}
-
-function startTimer() {
-  const timerBar = document.getElementById('timerBar');
-  const timerText = document.getElementById('timerText');
-
-  clearInterval(gameState.timerInterval);
-  timerBar.style.width = '100%';
-  timerBar.className = 'timer-bar';
-  timerText.textContent = TIME_PER_QUESTION;
-
-  const startTime = Date.now();
-  gameState.timerInterval = setInterval(() => {
-    const elapsed = (Date.now() - startTime) / 1000;
-    const remaining = Math.max(0, TIME_PER_QUESTION - elapsed);
-    gameState.timeLeft = remaining;
-
-    const pct = (remaining / TIME_PER_QUESTION) * 100;
-    timerBar.style.width = pct + '%';
-    timerText.textContent = Math.ceil(remaining);
-
-    if (remaining <= 3) {
-      timerBar.className = 'timer-bar danger';
-      if (Math.ceil(remaining) !== Math.ceil(remaining + 0.1)) {
-        audio.play('tick');
-      }
-    } else if (remaining <= 7) {
-      timerBar.className = 'timer-bar warning';
-    }
-
-    if (remaining <= 0) {
-      clearInterval(gameState.timerInterval);
-      if (!gameState.answered) {
-        timeUp();
-      }
-    }
-  }, 50);
-}
-
-function selectAnswer(idx) {
-  if (gameState.answered) return;
-  gameState.answered = true;
-  clearInterval(gameState.timerInterval);
-
-  const q = gameState.questions[gameState.currentQ];
-  const btns = document.querySelectorAll('.answer-btn');
-  const timeTaken = TIME_PER_QUESTION - gameState.timeLeft;
-  gameState.totalTime += timeTaken;
-
-  btns.forEach(b => b.classList.add('disabled'));
-
-  if (idx === q.c) {
-    // Correct
-    btns[idx].classList.add('correct');
-    audio.play('correct');
-
-    // Score calculation: base + speed bonus
-    let points = 100;
-    if (timeTaken < BONUS_SPEED) {
-      const speedBonus = Math.round((BONUS_SPEED - timeTaken) / BONUS_SPEED * 50);
-      points += speedBonus;
-      showBonusPopup(`+${points} ⚡`);
-    }
-
-    // Streak
-    gameState.streak++;
-    if (gameState.streak > gameState.maxStreak) gameState.maxStreak = gameState.streak;
-
-    if (gameState.streak >= 3) {
-      const streakBonus = gameState.streak * 10;
-      points += streakBonus;
-      audio.play('streak');
-      const sd = document.getElementById('streakDisplay');
-      document.getElementById('streakCount').textContent = gameState.streak;
-      sd.classList.add('visible');
-      spawnParticles(6, '#FFD700');
-    }
-
-    gameState.score += points;
-    gameState.correctCount++;
-    document.getElementById('scoreValue').textContent = gameState.score;
-
-  } else {
-    // Wrong
-    btns[idx].classList.add('wrong');
-    btns[q.c].classList.add('reveal-correct');
-    audio.play('wrong');
-    gameState.streak = 0;
-    document.getElementById('streakDisplay').classList.remove('visible');
-  }
-
-  gameState.currentQ++;
-  setTimeout(() => showQuestion(), 1200);
-}
-
-function timeUp() {
-  gameState.answered = true;
-  audio.play('timeup');
-
-  const q = gameState.questions[gameState.currentQ];
-  const btns = document.querySelectorAll('.answer-btn');
-  btns.forEach(b => b.classList.add('disabled'));
-  btns[q.c].classList.add('reveal-correct');
-
-  gameState.streak = 0;
-  gameState.totalTime += TIME_PER_QUESTION;
-  document.getElementById('streakDisplay').classList.remove('visible');
-
-  gameState.currentQ++;
-  setTimeout(() => showQuestion(), 1500);
-}
-
-function endGame() {
-  clearInterval(gameState.timerInterval);
-  document.getElementById('streakDisplay').classList.remove('visible');
-
-  const score = gameState.score;
-  const isNewRecord = saveBestScore(score);
-
-  // Determine emoji & title
-  const ratio = gameState.correctCount / TOTAL_QUESTIONS;
-  let emoji, title;
-  if (ratio >= 0.9) { emoji = '🏆'; title = 'أداء أسطوري!'; }
-  else if (ratio >= 0.7) { emoji = '⭐'; title = 'أحسنت!'; }
-  else if (ratio >= 0.5) { emoji = '👍'; title = 'جيد!'; }
-  else { emoji = '💪'; title = 'حاول مجدداً!'; }
-
-  document.getElementById('resultEmoji').textContent = emoji;
-  document.getElementById('resultTitle').textContent = title;
-  document.getElementById('resultScore').textContent = score;
-  document.getElementById('statCorrect').textContent = 
-    `${gameState.correctCount}/${TOTAL_QUESTIONS}`;
-  document.getElementById('statStreak').textContent = gameState.maxStreak;
-  document.getElementById('statAvgTime').textContent = 
-    (gameState.totalTime / TOTAL_QUESTIONS).toFixed(1) + 'ث';
-
-  const newRecordEl = document.getElementById('newRecord');
-  if (isNewRecord && score > 0) {
-    newRecordEl.classList.add('visible');
-    audio.play('record');
-    spawnParticles(20, '#FFD700');
-    spawnParticles(15, '#FF6B35');
-  } else {
-    newRecordEl.classList.remove('visible');
-  }
-
-  showScreen('resultsScreen');
-}
-
-function restartGame() {
-  audio.play('click');
-  loadBestScore();
-  showScreen('startScreen');
-}
-
-function shareResult() {
-  audio.play('click');
-  const text = `🏜️ تحدي العقول - مسابقة ثقافية\n` +
-    `⭐ النتيجة: ${gameState.score} نقطة\n` +
-    `✅ الإجابات الصحيحة: ${gameState.correctCount}/${TOTAL_QUESTIONS}\n` +
-    `🔥 أطول سلسلة: ${gameState.maxStreak}\n` +
-    `⏱️ متوسط الوقت: ${(gameState.totalTime / TOTAL_QUESTIONS).toFixed(1)} ثانية\n` +
-    `هل تستطيع تحطيم رقمي؟ 💪`;
-
-  if (navigator.share) {
-    navigator.share({ title: 'تحدي العقول', text }).catch(() => copyToClipboard(text));
-  } else {
-    copyToClipboard(text);
-  }
-}
-
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    const toast = document.getElementById('shareToast');
-    toast.classList.add('visible');
-    setTimeout(() => toast.classList.remove('visible'), 2500);
-  }).catch(() => {
-    // Fallback
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    const toast = document.getElementById('shareToast');
-    toast.classList.add('visible');
-    setTimeout(() => toast.classList.remove('visible'), 2500);
-  });
-}
-
-// ============================================================
-// VISUAL EFFECTS
-// ============================================================
-function showBonusPopup(text) {
-  const popup = document.getElementById('bonusPopup');
-  popup.textContent = text;
-  popup.className = 'bonus-popup visible';
-  setTimeout(() => popup.className = 'bonus-popup hide', 600);
-  setTimeout(() => popup.className = 'bonus-popup', 1000);
-}
-
-function spawnParticles(count, color) {
-  const container = document.getElementById('particles');
-  for (let i = 0; i < count; i++) {
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.background = color;
-    p.style.left = (40 + Math.random() * 20) + '%';
-    p.style.top = (40 + Math.random() * 20) + '%';
-    p.style.boxShadow = `0 0 6px ${color}`;
-
-    const dx = (Math.random() - 0.5) * 300;
-    const dy = (Math.random() - 0.5) * 300;
-    const duration = 600 + Math.random() * 600;
-
-    p.animate([
-      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-      { transform: `translate(${dx}px, ${dy}px) scale(0)`, opacity: 0 }
-    ], { duration, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' });
-
-    container.appendChild(p);
-    setTimeout(() => p.remove(), duration);
-  }
-}
-
-// ============================================================
-// INIT
-// ============================================================
-loadBestScore();
-initThreeScene();
-</script>
+<div class="share-toast" id="shareToast" role="status" aria-live="polite">✅ تم نسخ النتيجة!</div>
+
+<script src="js/storage.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>
