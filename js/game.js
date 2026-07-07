@@ -73,12 +73,21 @@ async function loadQuestions() {
 // ============================================================
 // SEEDED RANDOM (for daily challenge)
 // ============================================================
+// xmur3 string hash feeding a mulberry32 PRNG — deterministic per seed
 function seedRandom(seed) {
-  let s = 0;
-  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) | 0;
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  let s = (h ^ (h >>> 16)) >>> 0;
   return function() {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -96,6 +105,14 @@ const shuffleArray = (arr) => shuffleArrayWith(arr, Math.random);
 // ============================================================
 // QUESTION SELECTION
 // ============================================================
+// Difficulty pools, from strict to widest — used to top up when the
+// strict pool can't fill a full round
+const DIFF_POOLS = {
+  easy:   [[1], [1, 2], [1, 2, 3]],
+  medium: [[1, 2], [1, 2, 3]],
+  hard:   [[2, 3], [1, 2, 3]]
+};
+
 function selectQuestions() {
   const isDaily = gameState.mode === 'daily';
   const rng = isDaily ? seedRandom(Storage.getDailyKey()) : Math.random;
@@ -104,8 +121,8 @@ function selectQuestions() {
   // Filter by difficulty if not daily
   let pool = allQuestions;
   if (!isDaily) {
-    const diffMap = { easy: [1], medium: [1, 2], hard: [2, 3] };
-    pool = allQuestions.filter(q => diffMap[gameState.difficulty].includes(q.d));
+    const diffs = DIFF_POOLS[gameState.difficulty][0];
+    pool = allQuestions.filter(q => diffs.includes(q.d));
   }
 
   // Group by category
@@ -125,6 +142,27 @@ function selectQuestions() {
     const shuffled = shuffleArrayWith(cats[cat], rng);
     selected = selected.concat(shuffled.slice(0, c));
   });
+
+  // Top up when small category pools left the round short: first from the
+  // rest of the same pool, then from progressively wider difficulty pools
+  if (selected.length < count) {
+    const chosen = new Set(selected);
+    const topUp = (candidates) => {
+      const rest = shuffleArrayWith(candidates.filter(q => !chosen.has(q)), rng);
+      for (const q of rest) {
+        if (selected.length >= count) break;
+        selected.push(q);
+        chosen.add(q);
+      }
+    };
+    topUp(pool);
+    if (!isDaily) {
+      for (const diffs of DIFF_POOLS[gameState.difficulty].slice(1)) {
+        if (selected.length >= count) break;
+        topUp(allQuestions.filter(q => diffs.includes(q.d)));
+      }
+    }
+  }
 
   // Shuffle order and answers
   return shuffleArrayWith(selected, rng).map(q => {
@@ -226,10 +264,14 @@ function startGameNow() {
   gameState.fiftyAvailable = true;
   gameState.questions = selectQuestions();
 
-  // For daily mode, time/count from selected questions
-  if (gameState.mode === 'daily') {
-    gameState.questionsCount = gameState.questions.length;
-    gameState.timePerQuestion = 15;
+  // Clamp to what was actually selected — the pool may not fill the round
+  gameState.questionsCount = gameState.questions.length;
+  if (gameState.mode === 'daily') gameState.timePerQuestion = 15;
+
+  if (!gameState.questionsCount) {
+    showToast('❌ لا توجد أسئلة متاحة', 'wrong');
+    showScreen('startScreen');
+    return;
   }
 
   $('scoreValue').textContent = '0';
@@ -254,7 +296,7 @@ function startGameNow() {
 }
 
 function showQuestion() {
-  if (gameState.currentQ >= gameState.questionsCount) {
+  if (gameState.currentQ >= gameState.questionsCount || !gameState.questions[gameState.currentQ]) {
     endGame();
     return;
   }
@@ -679,6 +721,7 @@ function showBonusPopup(text) {
 }
 
 function spawnParticles(count, color) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const container = $('particles');
   for (let i = 0; i < count; i++) {
     const p = document.createElement('div');
@@ -727,9 +770,8 @@ function onKeyDown(e) {
     }
   }
 
-  if (e.key === 'Escape') {
-    if (active === 'gameScreen') backToStart();
-    else if (active !== 'startScreen') backToStart();
+  if (e.key === 'Escape' && active !== 'startScreen') {
+    backToStart();
   }
 }
 
