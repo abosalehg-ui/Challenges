@@ -45,6 +45,9 @@
     <div class="modes-grid">
       <button class="mode-btn" id="btnClassic" onclick="chooseMode('classic')" aria-label="ابدأ الوضع الكلاسيكي">🎯 كلاسيكي</button>
       <button class="mode-btn" id="btnDaily" onclick="chooseMode('daily')" aria-label="ابدأ تحدي اليوم">📅 تحدي اليوم</button>
+      <button class="mode-btn" id="btnCategory" onclick="chooseMode('category')" aria-label="العب في فئة محددة">🗂️ حسب الفئة</button>
+      <button class="mode-btn" id="btnSurvival" onclick="chooseMode('survival')" aria-label="ابدأ وضع البقاء: خطأ واحد ينهي الجولة">🛡️ البقاء</button>
+      <button class="mode-btn" id="btnTimeattack" onclick="chooseMode('timeattack')" aria-label="ابدأ وضع ضد الساعة: أكبر عدد إجابات في دقيقتين">⏱️ ضد الساعة</button>
     </div>
 
     <div class="secondary-buttons">
@@ -62,7 +65,7 @@
         <div class="difficulty-icon">🟢</div>
         <div class="difficulty-info">
           <div class="difficulty-label">سهل</div>
-          <div class="difficulty-meta">10 أسئلة • 20 ثانية لكل سؤال</div>
+          <div class="difficulty-meta">10 أسئلة • 20 ثانية لكل سؤال • نقاط ×0.8</div>
         </div>
       </button>
       <button class="difficulty-btn" onclick="chooseDifficulty('medium')" aria-label="مستوى متوسط">
@@ -80,6 +83,13 @@
         </div>
       </button>
     </div>
+    <button class="btn-secondary" onclick="backToStart()">← رجوع</button>
+  </div>
+
+  <!-- CATEGORY SCREEN -->
+  <div class="screen" id="categoryScreen" role="region" aria-label="اختر الفئة">
+    <h2 class="section-title">اختر الفئة</h2>
+    <div class="category-grid" id="categoryGrid"></div>
     <button class="btn-secondary" onclick="backToStart()">← رجوع</button>
   </div>
 
@@ -145,7 +155,15 @@
         <button class="btn-result btn-retry" onclick="restartGame()" aria-label="ابدأ تحدياً جديداً">🔄 جولة جديدة</button>
         <button class="btn-result btn-share" onclick="shareResult()" aria-label="شارك النتيجة">📤 شارك</button>
       </div>
+      <button class="btn-secondary btn-review" id="btnReview" onclick="showReview()" aria-label="مراجعة الأسئلة التي أخطأت فيها">📝 مراجعة الأخطاء</button>
     </div>
+  </div>
+
+  <!-- REVIEW SCREEN -->
+  <div class="screen" id="reviewScreen" role="region" aria-label="مراجعة الأخطاء">
+    <h2 class="section-title">📝 مراجعة الأخطاء</h2>
+    <div class="list-container" id="reviewList"></div>
+    <button class="btn-secondary" onclick="backToResults()" style="margin-top: 14px;">← رجوع للنتيجة</button>
   </div>
 
   <!-- ACHIEVEMENTS SCREEN -->
@@ -213,6 +231,7 @@
 <div class="copyright">تصميم عبدالكريم العبود • abo.saleh.g@gmail.com</div>
 <div class="share-toast" id="shareToast" role="status" aria-live="polite">✅ تم نسخ النتيجة!</div>
 
+<script src="js/utils.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/scene.js"></script>

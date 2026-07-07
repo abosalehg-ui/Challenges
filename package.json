@@ -1,0 +1,10 @@
+{
+  "name": "mind-challenge",
+  "private": true,
+  "description": "تحدي العقول — مسابقة ثقافية عربية (PWA بدون خطوة بناء؛ هذا الملف لسكربتات التطوير فقط)",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "validate": "node scripts/validate-questions.mjs && node scripts/validate-sw.mjs",
+    "test": "node --test scripts/tests/*.test.mjs"
+  }
+}

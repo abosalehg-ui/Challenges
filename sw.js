@@ -1,12 +1,15 @@
 // ============================================================
 // SERVICE WORKER — offline-first cache strategy
 // ============================================================
-const CACHE_NAME = 'mind-challenge-v1';
+// CACHE_NAME must be bumped on every release that changes any cached asset,
+// and ASSETS must list every deployable file (checked by scripts/validate-sw.mjs)
+const CACHE_NAME = 'mind-challenge-v7';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './manifest.json',
+  './js/utils.js',
   './js/storage.js',
   './js/audio.js',
   './js/scene.js',
@@ -15,6 +18,7 @@ const ASSETS = [
   './lib/three.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-512-maskable.png',
   './icons/favicon.svg'
 ];
 

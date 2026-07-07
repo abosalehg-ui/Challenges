@@ -11,9 +11,22 @@ const Scene = (() => {
   };
   let currentTheme = 'night';
   let skyMesh, groundMesh;
+  let reducedMotion = false;
+  let animating = false;
 
   function init() {
     if (initialized || typeof THREE === 'undefined') return;
+    const rmQuery = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (rmQuery) {
+      reducedMotion = rmQuery.matches;
+      const onChange = (e) => {
+        reducedMotion = e.matches;
+        if (reducedMotion) _renderFrame();
+        else _startLoop();
+      };
+      if (rmQuery.addEventListener) rmQuery.addEventListener('change', onChange);
+      else if (rmQuery.addListener) rmQuery.addListener(onChange);
+    }
     clock = new THREE.Clock();
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -38,7 +51,8 @@ const Scene = (() => {
 
     window.addEventListener('resize', _onResize);
     initialized = true;
-    _animate();
+    if (reducedMotion) _renderFrame();
+    else _startLoop();
   }
 
   function _buildSky() {
@@ -238,9 +252,25 @@ const Scene = (() => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    if (reducedMotion) _renderFrame();
+  }
+
+  function _renderFrame() {
+    if (renderer && scene && camera) renderer.render(scene, camera);
+  }
+
+  function _startLoop() {
+    if (animating) return;
+    animating = true;
+    _animate();
   }
 
   function _animate() {
+    if (reducedMotion) {
+      animating = false;
+      _renderFrame();
+      return;
+    }
     requestAnimationFrame(_animate);
     if (!renderer || !scene || !camera || !clock) return;
     const t = clock.getElapsedTime();
@@ -288,6 +318,7 @@ const Scene = (() => {
     _buildGround();
     _buildLights();
     _buildSandParticles();
+    if (reducedMotion) _renderFrame();
   }
 
   return { init, setTheme };

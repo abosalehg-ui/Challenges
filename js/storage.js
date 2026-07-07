@@ -11,7 +11,9 @@ const Storage = (() => {
     DAILY: 'quiz_daily_last',
     DAILY_SCORE: 'quiz_daily_score',
     DAILY_STREAK: 'quiz_daily_streak',
-    SETTINGS: 'quiz_settings'
+    SETTINGS: 'quiz_settings',
+    CATS_PLAYED: 'quiz_cats_played',
+    BEST_MODES: 'quiz_best_modes'
   };
 
   const get = (key, fallback = null) => {
@@ -83,6 +85,25 @@ const Storage = (() => {
   const getDailyStreak = () => get(KEYS.DAILY_STREAK, 0) || 0;
   const getDailyScore = () => get(KEYS.DAILY_SCORE, 0) || 0;
 
+  // Per-mode best scores (survival / timeattack)
+  const getModeBest = (mode) => {
+    const all = get(KEYS.BEST_MODES, {}) || {};
+    return all[mode] || 0;
+  };
+  const setModeBest = (mode, score) => {
+    const all = get(KEYS.BEST_MODES, {}) || {};
+    if (score > (all[mode] || 0)) { all[mode] = score; set(KEYS.BEST_MODES, all); return true; }
+    return false;
+  };
+
+  // Categories played (for the category-explorer achievement)
+  const getPlayedCategories = () => get(KEYS.CATS_PLAYED, []) || [];
+  const addPlayedCategory = (cat) => {
+    const list = getPlayedCategories();
+    if (!list.includes(cat)) { list.push(cat); set(KEYS.CATS_PLAYED, list); }
+    return list;
+  };
+
   // Settings
   const getSettings = () => get(KEYS.SETTINGS, {}) || {};
   const updateSettings = (patch) => set(KEYS.SETTINGS, { ...getSettings(), ...patch });
@@ -100,6 +121,8 @@ const Storage = (() => {
     getHistory, addHistory, clearHistory,
     getAchievements, hasAchievement, unlockAchievement,
     isDailyDone, setDailyDone, getDailyStreak, getDailyScore, getDailyKey,
+    getModeBest, setModeBest,
+    getPlayedCategories, addPlayedCategory,
     getSettings, updateSettings,
     resetAll
   };
