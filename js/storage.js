@@ -11,7 +11,8 @@ const Storage = (() => {
     DAILY: 'quiz_daily_last',
     DAILY_SCORE: 'quiz_daily_score',
     DAILY_STREAK: 'quiz_daily_streak',
-    SETTINGS: 'quiz_settings'
+    SETTINGS: 'quiz_settings',
+    CATS_PLAYED: 'quiz_cats_played'
   };
 
   const get = (key, fallback = null) => {
@@ -83,6 +84,14 @@ const Storage = (() => {
   const getDailyStreak = () => get(KEYS.DAILY_STREAK, 0) || 0;
   const getDailyScore = () => get(KEYS.DAILY_SCORE, 0) || 0;
 
+  // Categories played (for the category-explorer achievement)
+  const getPlayedCategories = () => get(KEYS.CATS_PLAYED, []) || [];
+  const addPlayedCategory = (cat) => {
+    const list = getPlayedCategories();
+    if (!list.includes(cat)) { list.push(cat); set(KEYS.CATS_PLAYED, list); }
+    return list;
+  };
+
   // Settings
   const getSettings = () => get(KEYS.SETTINGS, {}) || {};
   const updateSettings = (patch) => set(KEYS.SETTINGS, { ...getSettings(), ...patch });
@@ -100,6 +109,7 @@ const Storage = (() => {
     getHistory, addHistory, clearHistory,
     getAchievements, hasAchievement, unlockAchievement,
     isDailyDone, setDailyDone, getDailyStreak, getDailyScore, getDailyKey,
+    getPlayedCategories, addPlayedCategory,
     getSettings, updateSettings,
     resetAll
   };

@@ -230,6 +230,8 @@ body {
   color: #fff;
 }
 .mode-btn:focus-visible { outline: 3px solid var(--gold-bright); outline-offset: 3px; }
+/* Odd leftover button fills the whole row */
+.modes-grid .mode-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 .daily-streak {
   display: none;
@@ -308,6 +310,26 @@ body {
 .difficulty-info { flex: 1; }
 .difficulty-label { font-size: 1.2rem; font-weight: 800; color: var(--gold-bright); }
 .difficulty-meta { font-size: 0.85rem; color: var(--sand); opacity: 0.85; margin-top: 2px; }
+
+/* ============================================================
+   CATEGORY SCREEN
+   ============================================================ */
+.category-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.category-grid .difficulty-btn {
+  flex-direction: column;
+  text-align: center;
+  gap: 8px;
+  padding: 14px 10px;
+}
+.category-grid .difficulty-icon { font-size: 2rem; }
+.category-grid .difficulty-label { font-size: 1rem; }
+.category-grid .difficulty-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 /* ============================================================
    GAME SCREEN

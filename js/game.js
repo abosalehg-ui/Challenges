@@ -12,8 +12,9 @@ const DIFFICULTY = {
 };
 
 const MODE = {
-  classic: { label: 'كلاسيكي', icon: '🎯' },
-  daily:   { label: 'تحدي اليوم', icon: '📅' }
+  classic:  { label: 'كلاسيكي', icon: '🎯' },
+  daily:    { label: 'تحدي اليوم', icon: '📅' },
+  category: { label: 'حسب الفئة', icon: '🗂️' }
 };
 
 const BONUS_SPEED = 5;
@@ -28,7 +29,9 @@ const ACHIEVEMENTS = [
   { id: 'score_2000',     label: 'الألفان',             desc: 'احصل على 2000 نقطة في جولة واحدة',     icon: '👑' },
   { id: 'daily_player',   label: 'لاعب يومي',           desc: 'العب التحدي اليومي 3 أيام متتالية',    icon: '📅' },
   { id: 'hard_master',    label: 'محترف الصعب',         desc: 'أكمل جولة على مستوى صعب',                icon: '🎖️' },
-  { id: 'no_help',        label: 'بدون مساعدة',         desc: 'أكمل جولة دون استخدام 50:50',           icon: '🧠' }
+  { id: 'no_help',        label: 'بدون مساعدة',         desc: 'أكمل جولة دون استخدام 50:50',           icon: '🧠' },
+  { id: 'category_explorer', label: 'مستكشف الفئات',    desc: 'العب جولة في كل فئة من الفئات الست',    icon: '🗂️' },
+  { id: 'category_perfect',  label: 'خبير متخصص',       desc: 'جولة كاملة بلا أخطاء في وضع الفئة',     icon: '🎓' }
 ];
 
 let gameState = {
@@ -46,6 +49,7 @@ let gameState = {
   bestScore: 0,
   difficulty: 'medium',
   mode: 'classic',
+  category: 'all',
   fiftyUsed: false,
   fiftyAvailable: true,
   questionsCount: 15,
@@ -118,11 +122,15 @@ function selectQuestions() {
   const rng = isDaily ? seedRandom(Storage.getDailyKey()) : Math.random;
   const count = isDaily ? 10 : gameState.questionsCount;
 
-  // Filter by difficulty if not daily
-  let pool = allQuestions;
+  // Restrict to the chosen category (category mode), then by difficulty
+  let base = allQuestions;
+  if (!isDaily && gameState.category !== 'all') {
+    base = allQuestions.filter(q => q.cat === gameState.category);
+  }
+  let pool = base;
   if (!isDaily) {
     const diffs = DIFF_POOLS[gameState.difficulty][0];
-    pool = allQuestions.filter(q => diffs.includes(q.d));
+    pool = base.filter(q => diffs.includes(q.d));
   }
 
   // Group by category
@@ -159,7 +167,7 @@ function selectQuestions() {
     if (!isDaily) {
       for (const diffs of DIFF_POOLS[gameState.difficulty].slice(1)) {
         if (selected.length >= count) break;
-        topUp(allQuestions.filter(q => diffs.includes(q.d)));
+        topUp(base.filter(q => diffs.includes(q.d)));
       }
     }
   }
@@ -225,6 +233,7 @@ function toggleMute() {
 function chooseMode(mode) {
   audio.play('click');
   gameState.mode = mode;
+  gameState.category = 'all';
   if (mode === 'daily') {
     if (Storage.isDailyDone()) {
       showToast(`أكملت تحدي اليوم! نقاطك: ${Storage.getDailyScore()}`, 'success');
@@ -232,9 +241,36 @@ function chooseMode(mode) {
     }
     gameState.difficulty = 'medium';
     startGameNow();
+  } else if (mode === 'category') {
+    renderCategoryScreen();
+    showScreen('categoryScreen');
   } else {
     showScreen('difficultyScreen');
   }
+}
+
+function renderCategoryScreen() {
+  const grid = $('categoryGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const entries = Object.entries(categoriesMeta).concat([['all', { icon: '🌐', label: 'كل الفئات' }]]);
+  entries.forEach(([key, meta]) => {
+    const btn = document.createElement('button');
+    btn.className = 'difficulty-btn';
+    btn.setAttribute('aria-label', `فئة ${meta.label}`);
+    btn.innerHTML = `
+      <div class="difficulty-icon" aria-hidden="true">${meta.icon}</div>
+      <div class="difficulty-info"><div class="difficulty-label">${meta.label}</div></div>
+    `;
+    btn.onclick = () => chooseCategory(key);
+    grid.appendChild(btn);
+  });
+}
+
+function chooseCategory(cat) {
+  audio.play('click');
+  gameState.category = cat;
+  showScreen('difficultyScreen');
 }
 
 function chooseDifficulty(diff) {
@@ -286,9 +322,14 @@ function startGameNow() {
   if (modeInd) {
     const m = MODE[gameState.mode];
     const d = DIFFICULTY[gameState.difficulty];
-    modeInd.textContent = gameState.mode === 'daily'
-      ? `${m.icon} ${m.label}`
-      : `${d.icon} ${d.label}`;
+    const cc = categoriesMeta[gameState.category];
+    if (gameState.mode === 'daily') {
+      modeInd.textContent = `${m.icon} ${m.label}`;
+    } else if (gameState.mode === 'category' && cc) {
+      modeInd.textContent = `${cc.icon} ${cc.label} • ${d.icon}`;
+    } else {
+      modeInd.textContent = `${d.icon} ${d.label}`;
+    }
   }
 
   showScreen('gameScreen');
@@ -502,7 +543,8 @@ function endGame() {
     total: gameState.questionsCount,
     maxStreak: gameState.maxStreak,
     mode: gameState.mode,
-    difficulty: gameState.difficulty
+    difficulty: gameState.difficulty,
+    category: gameState.category
   });
 
   // Daily completion
@@ -521,6 +563,11 @@ function endGame() {
   if (score >= 2000) tryUnlock('score_2000');
   if (gameState.difficulty === 'hard') tryUnlock('hard_master');
   if (!gameState.fiftyUsed) tryUnlock('no_help');
+  if (gameState.mode === 'category' && gameState.category !== 'all') {
+    const played = Storage.addPlayedCategory(gameState.category);
+    if (played.length >= Object.keys(categoriesMeta).length) tryUnlock('category_explorer');
+    if (gameState.correctCount === gameState.questionsCount) tryUnlock('category_perfect');
+  }
 
   // Result UI
   const ratio = gameState.correctCount / gameState.questionsCount;
@@ -620,7 +667,15 @@ function renderHistory() {
   history.forEach(h => {
     const d = new Date(h.date);
     const dateStr = `${d.getDate()}/${d.getMonth()+1} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
-    const modeLabel = h.mode === 'daily' ? '📅 يومي' : (DIFFICULTY[h.difficulty]?.icon + ' ' + DIFFICULTY[h.difficulty]?.label);
+    let modeLabel;
+    if (h.mode === 'daily') {
+      modeLabel = '📅 يومي';
+    } else {
+      const diff = DIFFICULTY[h.difficulty];
+      modeLabel = diff ? `${diff.icon} ${diff.label}` : (MODE[h.mode]?.label || '');
+      const cc = h.category && h.category !== 'all' ? categoriesMeta[h.category] : null;
+      if (cc) modeLabel = `${cc.icon} ${cc.label} • ${modeLabel}`;
+    }
     const item = document.createElement('div');
     item.className = 'history-item';
     item.innerHTML = `
@@ -675,8 +730,11 @@ function resetAllData() {
 function shareResult() {
   audio.play('click');
   const modeLbl = gameState.mode === 'daily' ? 'تحدي اليوم' : DIFFICULTY[gameState.difficulty].label;
+  const cc = gameState.mode === 'category' && gameState.category !== 'all'
+    ? categoriesMeta[gameState.category] : null;
   const text = `🏜️ تحدي العقول - مسابقة ثقافية\n` +
     `الوضع: ${modeLbl}\n` +
+    (cc ? `الفئة: ${cc.label}\n` : '') +
     `⭐ النتيجة: ${gameState.score} نقطة\n` +
     `✅ الإجابات الصحيحة: ${gameState.correctCount}/${gameState.questionsCount}\n` +
     `🔥 أطول سلسلة: ${gameState.maxStreak}\n` +

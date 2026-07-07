@@ -45,6 +45,7 @@
     <div class="modes-grid">
       <button class="mode-btn" id="btnClassic" onclick="chooseMode('classic')" aria-label="ابدأ الوضع الكلاسيكي">🎯 كلاسيكي</button>
       <button class="mode-btn" id="btnDaily" onclick="chooseMode('daily')" aria-label="ابدأ تحدي اليوم">📅 تحدي اليوم</button>
+      <button class="mode-btn" id="btnCategory" onclick="chooseMode('category')" aria-label="العب في فئة محددة">🗂️ حسب الفئة</button>
     </div>
 
     <div class="secondary-buttons">
@@ -80,6 +81,13 @@
         </div>
       </button>
     </div>
+    <button class="btn-secondary" onclick="backToStart()">← رجوع</button>
+  </div>
+
+  <!-- CATEGORY SCREEN -->
+  <div class="screen" id="categoryScreen" role="region" aria-label="اختر الفئة">
+    <h2 class="section-title">اختر الفئة</h2>
+    <div class="category-grid" id="categoryGrid"></div>
     <button class="btn-secondary" onclick="backToStart()">← رجوع</button>
   </div>
 
