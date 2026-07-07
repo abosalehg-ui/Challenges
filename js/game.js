@@ -92,36 +92,7 @@ async function loadQuestions() {
   }
 }
 
-// ============================================================
-// SEEDED RANDOM (for daily challenge)
-// ============================================================
-// xmur3 string hash feeding a mulberry32 PRNG — deterministic per seed
-function seedRandom(seed) {
-  let h = 1779033703 ^ seed.length;
-  for (let i = 0; i < seed.length; i++) {
-    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
-    h = (h << 13) | (h >>> 19);
-  }
-  h = Math.imul(h ^ (h >>> 16), 2246822507);
-  h = Math.imul(h ^ (h >>> 13), 3266489909);
-  let s = (h ^ (h >>> 16)) >>> 0;
-  return function() {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function shuffleArrayWith(arr, rng) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
+// seedRandom / shuffleArrayWith / prepareQuestions / pickQuestions live in js/utils.js
 const shuffleArray = (arr) => shuffleArrayWith(arr, Math.random);
 
 // ============================================================
@@ -135,20 +106,7 @@ const DIFF_POOLS = {
   hard:   [[2, 3], [1, 2, 3]]
 };
 
-// Shuffle each question's answers, keeping the correct index in sync
-function prepareQuestions(list, rng) {
-  return list.map(q => {
-    const correctAnswer = q.a[q.c];
-    const shuffledAnswers = shuffleArrayWith(q.a, rng);
-    return { ...q, a: shuffledAnswers, c: shuffledAnswers.indexOf(correctAnswer) };
-  });
-}
-
 function selectQuestions() {
-  const isDaily = gameState.mode === 'daily';
-  const rng = isDaily ? seedRandom(Storage.getDailyKey()) : Math.random;
-  const count = isDaily ? 10 : gameState.questionsCount;
-
   // Arcade queues: survival climbs through difficulty bands,
   // time-attack draws from the whole shuffled bank
   if (gameState.mode === 'survival') {
@@ -159,58 +117,13 @@ function selectQuestions() {
     return prepareQuestions(shuffleArray(allQuestions), Math.random);
   }
 
-  // Restrict to the chosen category (category mode), then by difficulty
-  let base = allQuestions;
-  if (!isDaily && gameState.category !== 'all') {
-    base = allQuestions.filter(q => q.cat === gameState.category);
-  }
-  let pool = base;
-  if (!isDaily) {
-    const diffs = DIFF_POOLS[gameState.difficulty][0];
-    pool = base.filter(q => diffs.includes(q.d));
+  if (gameState.mode === 'daily') {
+    const rng = seedRandom(Storage.getDailyKey());
+    return prepareQuestions(pickQuestions(allQuestions, 10, {}, rng), rng);
   }
 
-  // Group by category
-  const cats = {};
-  pool.forEach(q => {
-    if (!cats[q.cat]) cats[q.cat] = [];
-    cats[q.cat].push(q);
-  });
-
-  const catKeys = Object.keys(cats);
-  const perCat = Math.floor(count / catKeys.length);
-  const remainder = count % catKeys.length;
-
-  let selected = [];
-  catKeys.forEach((cat, i) => {
-    const c = perCat + (i < remainder ? 1 : 0);
-    const shuffled = shuffleArrayWith(cats[cat], rng);
-    selected = selected.concat(shuffled.slice(0, c));
-  });
-
-  // Top up when small category pools left the round short: first from the
-  // rest of the same pool, then from progressively wider difficulty pools
-  if (selected.length < count) {
-    const chosen = new Set(selected);
-    const topUp = (candidates) => {
-      const rest = shuffleArrayWith(candidates.filter(q => !chosen.has(q)), rng);
-      for (const q of rest) {
-        if (selected.length >= count) break;
-        selected.push(q);
-        chosen.add(q);
-      }
-    };
-    topUp(pool);
-    if (!isDaily) {
-      for (const diffs of DIFF_POOLS[gameState.difficulty].slice(1)) {
-        if (selected.length >= count) break;
-        topUp(base.filter(q => diffs.includes(q.d)));
-      }
-    }
-  }
-
-  // Shuffle order and answers
-  return prepareQuestions(shuffleArrayWith(selected, rng), rng);
+  const opts = { category: gameState.category, diffPools: DIFF_POOLS[gameState.difficulty] };
+  return prepareQuestions(pickQuestions(allQuestions, gameState.questionsCount, opts), Math.random);
 }
 
 // Arcade rounds never run out: extend the queue with a reshuffled bank
