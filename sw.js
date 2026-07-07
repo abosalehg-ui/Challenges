@@ -3,7 +3,7 @@
 // ============================================================
 // CACHE_NAME must be bumped on every release that changes any cached asset,
 // and ASSETS must list every deployable file (checked by scripts/validate-sw.mjs)
-const CACHE_NAME = 'mind-challenge-v3';
+const CACHE_NAME = 'mind-challenge-v4';
 const ASSETS = [
   './',
   './index.html',

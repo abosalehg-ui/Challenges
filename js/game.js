@@ -53,7 +53,8 @@ let gameState = {
   fiftyUsed: false,
   fiftyAvailable: true,
   questionsCount: 15,
-  timePerQuestion: 15
+  timePerQuestion: 15,
+  mistakes: []
 };
 
 let allQuestions = [];
@@ -298,6 +299,7 @@ function startGameNow() {
   gameState.fastAnswers = 0;
   gameState.fiftyUsed = false;
   gameState.fiftyAvailable = true;
+  gameState.mistakes = [];
   gameState.questions = selectQuestions();
 
   // Clamp to what was actually selected — the pool may not fill the round
@@ -467,6 +469,7 @@ function selectAnswer(idx) {
     audio.play('wrong');
     gameState.streak = 0;
     $('streakDisplay').classList.remove('visible');
+    gameState.mistakes.push({ q: q.q, cat: q.cat, correct: q.a[q.c], chosen: q.a[idx], e: q.e });
   }
 
   showExplanation(q);
@@ -498,6 +501,7 @@ function timeUp() {
   gameState.streak = 0;
   gameState.totalTime += gameState.timePerQuestion;
   $('streakDisplay').classList.remove('visible');
+  gameState.mistakes.push({ q: q.q, cat: q.cat, correct: q.a[q.c], chosen: null, e: q.e });
 
   showExplanation(q);
 }
@@ -584,6 +588,13 @@ function endGame() {
   $('statStreak').textContent = gameState.maxStreak;
   $('statAvgTime').textContent = (gameState.totalTime / gameState.questionsCount).toFixed(1) + 'ث';
 
+  const reviewBtn = $('btnReview');
+  if (reviewBtn) {
+    const n = gameState.mistakes.length;
+    reviewBtn.style.display = n ? 'flex' : 'none';
+    reviewBtn.textContent = `📝 مراجعة الأخطاء (${n})`;
+  }
+
   const newRecordEl = $('newRecord');
   if (isNewRecord && score > 0) {
     newRecordEl.classList.add('visible');
@@ -601,6 +612,39 @@ function restartGame() {
   audio.play('click');
   refreshStartScreen();
   showScreen('startScreen');
+}
+
+// ============================================================
+// MISTAKE REVIEW
+// ============================================================
+function renderReview() {
+  const list = $('reviewList');
+  if (!list) return;
+  list.innerHTML = '';
+  gameState.mistakes.forEach(m => {
+    const cc = categoriesMeta[m.cat] || { icon: '❓', label: m.cat };
+    const item = document.createElement('div');
+    item.className = 'review-item';
+    const chosen = m.chosen === null ? '⏱️ انتهى الوقت' : m.chosen;
+    item.innerHTML = `
+      <div class="review-question">${cc.icon} ${m.q}</div>
+      <div class="review-wrong">إجابتك: ${chosen}</div>
+      <div class="review-correct">الصحيح: ${m.correct}</div>
+      ${m.e ? `<div class="review-explanation">💡 ${m.e}</div>` : ''}
+    `;
+    list.appendChild(item);
+  });
+}
+
+function showReview() {
+  audio.play('click');
+  renderReview();
+  showScreen('reviewScreen');
+}
+
+function backToResults() {
+  audio.play('click');
+  showScreen('resultsScreen');
 }
 
 function backToStart() {
@@ -829,7 +873,8 @@ function onKeyDown(e) {
   }
 
   if (e.key === 'Escape' && active !== 'startScreen') {
-    backToStart();
+    if (active === 'reviewScreen') backToResults();
+    else backToStart();
   }
 }
 

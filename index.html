@@ -153,7 +153,15 @@
         <button class="btn-result btn-retry" onclick="restartGame()" aria-label="ابدأ تحدياً جديداً">🔄 جولة جديدة</button>
         <button class="btn-result btn-share" onclick="shareResult()" aria-label="شارك النتيجة">📤 شارك</button>
       </div>
+      <button class="btn-secondary btn-review" id="btnReview" onclick="showReview()" aria-label="مراجعة الأسئلة التي أخطأت فيها">📝 مراجعة الأخطاء</button>
     </div>
+  </div>
+
+  <!-- REVIEW SCREEN -->
+  <div class="screen" id="reviewScreen" role="region" aria-label="مراجعة الأخطاء">
+    <h2 class="section-title">📝 مراجعة الأخطاء</h2>
+    <div class="list-container" id="reviewList"></div>
+    <button class="btn-secondary" onclick="backToResults()" style="margin-top: 14px;">← رجوع للنتيجة</button>
   </div>
 
   <!-- ACHIEVEMENTS SCREEN -->
