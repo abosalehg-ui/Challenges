@@ -258,6 +258,8 @@ function startGameNow() {
   audio.play('start');
 
   gameState.currentQ = 0;
+  // Block input on any leftover answer buttons until showQuestion renders
+  gameState.answered = true;
   gameState.score = 0;
   gameState.streak = 0;
   gameState.maxStreak = 0;
