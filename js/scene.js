@@ -308,7 +308,17 @@ const Scene = (() => {
     }
     currentTheme = theme;
 
-    while (scene.children.length > 0) scene.remove(scene.children[0]);
+    // Free GPU buffers/programs before rebuilding, or each theme switch
+    // leaks the previous scene's geometries and materials into VRAM.
+    while (scene.children.length > 0) {
+      const obj = scene.children[0];
+      scene.remove(obj);
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+        else obj.material.dispose();
+      }
+    }
     stars = []; dunes = [];
 
     renderer.setClearColor(themeColors[currentTheme].clear);

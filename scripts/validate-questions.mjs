@@ -60,8 +60,15 @@ questions.forEach((q, i) => {
     const normAnswers = q.a.map(normalize);
     if (new Set(normAnswers).size !== 4) err(`${where}: duplicate answers within the question`);
   }
-  if (!Number.isInteger(q.c) || q.c < 0 || q.c > 3) err(`${where}: "c" must be an integer 0-3 (got ${q.c})`);
+  // Editorial convention: the correct answer is stored first (c === 0);
+  // the game shuffles answers at runtime.
+  if (q.c !== 0) err(`${where}: "c" must be 0 — put the correct answer first (got ${q.c})`);
   if (typeof q.e !== 'string' || !q.e.trim()) warn(`${where}: missing explanation "e"`);
+
+  // Question text is rendered as textContent; still reject raw HTML angle
+  // brackets so authored content never depends on escaping behaviour.
+  const fields = [q.q, ...(Array.isArray(q.a) ? q.a : []), q.e].filter(v => typeof v === 'string');
+  if (fields.some(v => /[<>]/.test(v))) err(`${where}: "<" or ">" is not allowed in question text/answers/explanation`);
 
   const key = normalize(q.q || '');
   if (key) {

@@ -71,7 +71,10 @@ let gameState = {
   roundEnded: false,
   globalTimeLeft: 0,
   globalTimerInterval: null,
-  qStart: 0
+  qStart: 0,
+  advancing: false,
+  exitArmed: false,
+  exitTimer: null
 };
 
 let allQuestions = [];
@@ -80,15 +83,26 @@ let categoriesMeta = {};
 // ============================================================
 // LOAD QUESTIONS
 // ============================================================
-async function loadQuestions() {
+async function loadQuestions(attempt = 0) {
   try {
     const res = await fetch('data/questions.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    if (!data || !Array.isArray(data.questions) || !data.questions.length) {
+      throw new Error('empty question bank');
+    }
     allQuestions = data.questions;
-    categoriesMeta = data.categories;
+    categoriesMeta = data.categories || {};
+    allQuestions.forEach(q => { q._id = questionId(q); });
+    return true;
   } catch (e) {
     console.error('Failed to load questions:', e);
-    showToast('❌ فشل تحميل الأسئلة', 'wrong');
+    if (attempt < 3) {
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      return loadQuestions(attempt + 1);
+    }
+    showToast('❌ تعذّر تحميل الأسئلة — تحقق من الاتصال', 'wrong');
+    return false;
   }
 }
 
@@ -107,11 +121,10 @@ const DIFF_POOLS = {
 };
 
 function selectQuestions() {
-  // Arcade queues: survival climbs through difficulty bands,
+  // Arcade queues: survival ramps difficulty by position,
   // time-attack draws from the whole shuffled bank
   if (gameState.mode === 'survival') {
-    const bands = [1, 2, 3].map(d => shuffleArray(allQuestions.filter(q => q.d === d)));
-    return prepareQuestions([].concat(...bands), Math.random);
+    return prepareQuestions(buildSurvivalQueue(allQuestions, Math.random), Math.random);
   }
   if (gameState.mode === 'timeattack') {
     return prepareQuestions(shuffleArray(allQuestions), Math.random);
@@ -122,15 +135,27 @@ function selectQuestions() {
     return prepareQuestions(pickQuestions(allQuestions, 10, {}, rng), rng);
   }
 
-  const opts = { category: gameState.category, diffPools: DIFF_POOLS[gameState.difficulty] };
-  return prepareQuestions(pickQuestions(allQuestions, gameState.questionsCount, opts), Math.random);
+  // Classic / category: deprioritise recently played questions, then record
+  // what was drawn so the next round pulls fresh material.
+  const opts = {
+    category: gameState.category,
+    diffPools: DIFF_POOLS[gameState.difficulty],
+    exclude: new Set(Storage.getRecent())
+  };
+  const picked = prepareQuestions(pickQuestions(allQuestions, gameState.questionsCount, opts), Math.random);
+  Storage.pushRecent(picked.map(q => q._id));
+  return picked;
 }
 
-// Arcade rounds never run out: extend the queue with a reshuffled bank
+// Arcade rounds never run out: extend the queue with fresh, correctly-paced
+// material (survival keeps ramping; time-attack reshuffles the bank)
 function ensureQueue() {
   if (!isArcadeMode(gameState.mode)) return;
   if (gameState.currentQ >= gameState.questions.length) {
-    gameState.questions = gameState.questions.concat(prepareQuestions(shuffleArray(allQuestions), Math.random));
+    const extra = gameState.mode === 'survival'
+      ? buildSurvivalQueue(allQuestions, Math.random)
+      : shuffleArray(allQuestions);
+    gameState.questions = gameState.questions.concat(prepareQuestions(extra, Math.random));
     gameState.questionsCount = gameState.questions.length;
   }
 }
@@ -191,8 +216,13 @@ function toggleMute() {
 // ============================================================
 // MODE/DIFFICULTY SELECTION
 // ============================================================
-function chooseMode(mode) {
+async function chooseMode(mode) {
   audio.play('click');
+  // Recover from a failed initial load before committing to a round
+  if (!allQuestions.length) {
+    showToast('⏳ جارٍ تحميل الأسئلة...', 'wrong');
+    if (!(await loadQuestions())) return;
+  }
   gameState.mode = mode;
   gameState.category = 'all';
   if (mode === 'daily') {
@@ -260,6 +290,7 @@ function startGameNow() {
   gameState.currentQ = 0;
   // Block input on any leftover answer buttons until showQuestion renders
   gameState.answered = true;
+  gameState.advancing = false;
   gameState.score = 0;
   gameState.streak = 0;
   gameState.maxStreak = 0;
@@ -341,7 +372,14 @@ function showQuestion() {
     btn.className = 'answer-btn';
     btn.dataset.index = i;
     btn.setAttribute('aria-label', `الإجابة ${i + 1}: ${ans}`);
-    btn.innerHTML = `<span class="answer-num" aria-hidden="true">${i + 1}</span><span class="answer-text">${ans}</span>`;
+    const num = document.createElement('span');
+    num.className = 'answer-num';
+    num.setAttribute('aria-hidden', 'true');
+    num.textContent = i + 1;
+    const txt = document.createElement('span');
+    txt.className = 'answer-text';
+    txt.textContent = ans;
+    btn.append(num, txt);
     btn.onclick = () => selectAnswer(i);
     grid.appendChild(btn);
   });
@@ -445,8 +483,6 @@ function selectAnswer(idx) {
 
   btns.forEach(b => b.classList.add('disabled'));
 
-  if (timeTaken < 3) gameState.fastAnswers++;
-
   const diffMult = gameState.mode === 'survival'
     ? (SURVIVAL_MULT[q.d] || 1.0)
     : gameState.mode === 'timeattack'
@@ -456,6 +492,9 @@ function selectAnswer(idx) {
   if (idx === q.c) {
     btns[idx].classList.add('correct');
     audio.play('correct');
+
+    // Speedster counts only *correct* fast answers
+    if (timeTaken < 3) gameState.fastAnswers++;
 
     let points = 100;
     if (timeTaken < BONUS_SPEED) {
@@ -513,9 +552,13 @@ function showExplanation(q) {
 }
 
 function advanceQuestion() {
+  // Guard against key auto-repeat / double taps firing during the 100ms
+  // gap before the next question renders (which would skip questions)
+  if (gameState.advancing) return;
+  gameState.advancing = true;
   $('explanationCard')?.classList.remove('visible');
   gameState.currentQ++;
-  setTimeout(() => showQuestion(), 100);
+  setTimeout(() => { gameState.advancing = false; showQuestion(); }, 100);
 }
 
 function timeUp() {
@@ -575,6 +618,7 @@ function endGame() {
   const totalAsked = isArcade ? gameState.answeredCount : gameState.questionsCount;
 
   const score = gameState.score;
+  const prevModeBest = isArcade ? Storage.getModeBest(gameState.mode) : 0;
   const isNewRecord = isArcade
     ? Storage.setModeBest(gameState.mode, score)
     : Storage.setBest(score);
@@ -606,7 +650,9 @@ function endGame() {
   if (score >= 1000) tryUnlock('score_1000');
   if (score >= 2000) tryUnlock('score_2000');
   if (!isArcade && gameState.difficulty === 'hard') tryUnlock('hard_master');
-  if (!gameState.fiftyUsed) tryUnlock('no_help');
+  // "no help" rewards finishing a full standard round without 50:50 —
+  // not bailing out of an arcade round on the first question
+  if (!isArcade && !gameState.fiftyUsed) tryUnlock('no_help');
   if (gameState.mode === 'category' && gameState.category !== 'all') {
     const played = Storage.addPlayedCategory(gameState.category);
     if (played.length >= Object.keys(categoriesMeta).length) tryUnlock('category_explorer');
@@ -660,6 +706,17 @@ function endGame() {
     newRecordEl.classList.remove('visible');
   }
 
+  // Arcade modes: show the standing best so the player has a target to beat
+  const modeBestEl = $('modeBest');
+  if (modeBestEl) {
+    if (isArcade && !isNewRecord && prevModeBest > 0) {
+      modeBestEl.textContent = `🏅 أفضل نتيجة لك: ${prevModeBest}`;
+      modeBestEl.classList.add('visible');
+    } else {
+      modeBestEl.classList.remove('visible');
+    }
+  }
+
   showScreen('resultsScreen');
 }
 
@@ -681,12 +738,16 @@ function renderReview() {
     const item = document.createElement('div');
     item.className = 'review-item';
     const chosen = m.chosen === null ? '⏱️ انتهى الوقت' : m.chosen;
-    item.innerHTML = `
-      <div class="review-question">${cc.icon} ${m.q}</div>
-      <div class="review-wrong">إجابتك: ${chosen}</div>
-      <div class="review-correct">الصحيح: ${m.correct}</div>
-      ${m.e ? `<div class="review-explanation">💡 ${m.e}</div>` : ''}
-    `;
+    const addLine = (cls, text) => {
+      const div = document.createElement('div');
+      div.className = cls;
+      div.textContent = text;
+      item.appendChild(div);
+    };
+    addLine('review-question', `${cc.icon} ${m.q}`);
+    addLine('review-wrong', `إجابتك: ${chosen}`);
+    addLine('review-correct', `الصحيح: ${m.correct}`);
+    if (m.e) addLine('review-explanation', `💡 ${m.e}`);
     list.appendChild(item);
   });
 }
@@ -704,10 +765,28 @@ function backToResults() {
 
 function backToStart() {
   audio.play('click');
+  gameState.exitArmed = false;
+  clearTimeout(gameState.exitTimer);
   clearInterval(gameState.timerInterval);
   clearInterval(gameState.globalTimerInterval);
   refreshStartScreen();
   showScreen('startScreen');
+}
+
+// Leaving mid-round discards all progress, so require a confirming second
+// press within 2s instead of quitting on a single stray Esc / home tap.
+function requestExit() {
+  const active = document.querySelector('.screen.active')?.id;
+  const inRound = active === 'gameScreen' && !gameState.roundEnded;
+  if (inRound && !gameState.exitArmed) {
+    audio.play('click');
+    gameState.exitArmed = true;
+    showToast('اضغط مجدداً للخروج من الجولة', 'wrong');
+    clearTimeout(gameState.exitTimer);
+    gameState.exitTimer = setTimeout(() => { gameState.exitArmed = false; }, 2000);
+    return;
+  }
+  backToStart();
 }
 
 // ============================================================
@@ -780,13 +859,19 @@ function renderHistory() {
     }
     const item = document.createElement('div');
     item.className = 'history-item';
-    item.innerHTML = `
-      <div class="history-score">${h.score}</div>
-      <div class="history-info">
-        <div class="history-mode">${modeLabel}</div>
-        <div class="history-meta">${h.correct}/${h.total} • سلسلة ${h.maxStreak} • ${dateStr}</div>
-      </div>
-    `;
+    const score = document.createElement('div');
+    score.className = 'history-score';
+    score.textContent = h.score;
+    const info = document.createElement('div');
+    info.className = 'history-info';
+    const mode = document.createElement('div');
+    mode.className = 'history-mode';
+    mode.textContent = modeLabel;
+    const meta = document.createElement('div');
+    meta.className = 'history-meta';
+    meta.textContent = `${h.correct}/${h.total} • سلسلة ${h.maxStreak} • ${dateStr}`;
+    info.append(mode, meta);
+    item.append(score, info);
     list.appendChild(item);
   });
 }
@@ -909,33 +994,41 @@ function spawnParticles(count, color) {
 // KEYBOARD SUPPORT
 // ============================================================
 function onKeyDown(e) {
+  // Ignore key auto-repeat: a held Enter must not skip questions, nor a
+  // held answer key retrigger. Using e.code keeps shortcuts layout-agnostic
+  // (works on Arabic and other non-QWERTY keyboards).
+  if (e.repeat) return;
   const active = document.querySelector('.screen.active')?.id;
+  const code = e.code;
 
-  if (e.key === 'm' || e.key === 'M' || e.key === 'ء') {
+  if (code === 'KeyM') {
     toggleMute();
     return;
   }
 
   if (active === 'gameScreen' && !gameState.answered) {
-    const num = parseInt(e.key);
+    let num = NaN;
+    if (code.startsWith('Digit')) num = parseInt(code.slice(5));
+    else if (code.startsWith('Numpad')) num = parseInt(code.slice(6));
     if (num >= 1 && num <= 4) {
       const btns = document.querySelectorAll('.answer-btn');
       if (btns[num - 1] && !btns[num - 1].disabled) {
         selectAnswer(num - 1);
       }
-    } else if (e.key === 'h' || e.key === 'H') {
+    } else if (code === 'KeyH') {
       useFifty();
     }
   } else if (active === 'gameScreen' && gameState.answered) {
     // Time-attack auto-advances; a manual advance would skip a question
-    if ((e.key === 'Enter' || e.key === ' ') && gameState.mode !== 'timeattack') {
+    if ((code === 'Enter' || code === 'Space') && gameState.mode !== 'timeattack') {
       e.preventDefault();
       advanceQuestion();
     }
   }
 
-  if (e.key === 'Escape' && active !== 'startScreen') {
+  if (code === 'Escape' && active !== 'startScreen') {
     if (active === 'reviewScreen') backToResults();
+    else if (active === 'gameScreen') requestExit();
     else backToStart();
   }
 }
@@ -966,6 +1059,14 @@ function refreshStartScreen() {
       ds.style.display = 'none';
     }
   }
+
+  // Surface arcade-mode personal bests on their buttons as a target to beat
+  const survivalBest = Storage.getModeBest('survival');
+  const survivalBtn = $('btnSurvival');
+  if (survivalBtn) survivalBtn.textContent = survivalBest ? `🛡️ البقاء (${survivalBest})` : '🛡️ البقاء';
+  const timeBest = Storage.getModeBest('timeattack');
+  const timeBtn = $('btnTimeattack');
+  if (timeBtn) timeBtn.textContent = timeBest ? `⏱️ ضد الساعة (${timeBest})` : '⏱️ ضد الساعة';
 }
 
 // ============================================================
