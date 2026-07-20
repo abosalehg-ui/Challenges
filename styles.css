@@ -2,7 +2,7 @@
    تحدي العقول — Styles
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Amiri:wght@400;700&display=swap');
+@import url('fonts/fonts.css');
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -50,7 +50,7 @@ body[data-theme="day"] {
 }
 
 body {
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
@@ -172,7 +172,7 @@ body {
 }
 
 .game-title {
-  font-family: 'Amiri', serif;
+  font-family: 'Amiri', 'Noto Naskh Arabic', 'Times New Roman', serif;
   font-size: 2.8rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--gold-bright), var(--sand-light), var(--gold));
@@ -218,7 +218,7 @@ body {
   padding: 16px 12px;
   font-size: 1.05rem;
   font-weight: 800;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.25s;
@@ -255,7 +255,7 @@ body {
   border: 1px solid var(--card-border);
   padding: 10px 16px;
   border-radius: 14px;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
@@ -272,7 +272,7 @@ body {
    DIFFICULTY SCREEN
    ============================================================ */
 .section-title {
-  font-family: 'Amiri', serif;
+  font-family: 'Amiri', 'Noto Naskh Arabic', 'Times New Roman', serif;
   font-size: 1.8rem;
   color: var(--gold-bright);
   margin-bottom: 18px;
@@ -294,7 +294,7 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   color: var(--text);
   transition: all 0.25s;
   text-align: start;
@@ -447,7 +447,7 @@ body {
   border: none;
   padding: 8px 14px;
   border-radius: 18px;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   font-size: 0.85rem;
   font-weight: 800;
   cursor: pointer;
@@ -479,7 +479,7 @@ body {
   box-shadow: 0 20px 60px rgba(0,0,0,0.4);
 }
 .question-text {
-  font-family: 'Amiri', serif;
+  font-family: 'Amiri', 'Noto Naskh Arabic', 'Times New Roman', serif;
   font-size: 1.3rem;
   line-height: 1.85;
   color: var(--text);
@@ -499,7 +499,7 @@ body {
   border: 1.5px solid rgba(212,160,23,0.2);
   border-radius: 14px;
   padding: 14px 12px;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   font-size: 0.98rem;
   font-weight: 600;
   color: var(--text);
@@ -600,7 +600,7 @@ body[data-theme="day"] .answer-btn { background: rgba(255,255,255,0.6); border-c
   border: none;
   padding: 10px 18px;
   border-radius: 14px;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   font-weight: 800;
   cursor: pointer;
   font-size: 0.95rem;
@@ -661,7 +661,7 @@ body[data-theme="day"] .answer-btn { background: rgba(255,255,255,0.6); border-c
 }
 
 .result-title {
-  font-family: 'Amiri', serif;
+  font-family: 'Amiri', 'Noto Naskh Arabic', 'Times New Roman', serif;
   font-size: 1.8rem;
   font-weight: 700;
   color: var(--gold-bright);
@@ -690,6 +690,14 @@ body[data-theme="day"] .answer-btn { background: rgba(255,255,255,0.6); border-c
   animation: newRecordPulse 1.5s ease-in-out infinite;
 }
 .new-record.visible { display: inline-block; }
+.mode-best {
+  display: none;
+  color: var(--gold-bright);
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 14px;
+}
+.mode-best.visible { display: block; }
 @keyframes newRecordPulse {
   0%, 100% { box-shadow: 0 0 20px rgba(212,160,23,0.5); }
   50% { box-shadow: 0 0 40px rgba(212,160,23,0.8); }
@@ -723,7 +731,7 @@ body[data-theme="day"] .stat-item { background: rgba(0,0,0,0.05); border-color: 
   min-width: 140px;
   padding: 12px;
   border-radius: 14px;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
@@ -934,7 +942,7 @@ input.setting-toggle:checked + .toggle-switch::after {
   border-radius: 12px;
   font-weight: 700;
   cursor: pointer;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
   font-size: 0.9rem;
 }
 .btn-danger:hover { transform: translateY(-2px); }

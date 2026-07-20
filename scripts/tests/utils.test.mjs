@@ -9,7 +9,11 @@ import { dirname, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { seedRandom, shuffleArrayWith, prepareQuestions, pickQuestions } = require(join(root, 'js', 'utils.js'));
+const {
+  seedRandom, shuffleArrayWith, prepareQuestions, pickQuestions,
+  buildSurvivalQueue, questionId,
+  dailyKeyFor, dayBeforeKey, nextDailyStreak, displayedDailyStreak
+} = require(join(root, 'js', 'utils.js'));
 
 const bank = JSON.parse(readFileSync(join(root, 'data', 'questions.json'), 'utf8')).questions;
 const DIFF_POOLS = {
@@ -72,4 +76,63 @@ test('pickQuestions clamps to the pool instead of crashing on oversized requests
   assert.equal(picked.length, bank.length);
   assert.equal(new Set(picked).size, picked.length);
   assert.deepEqual(pickQuestions([], 10, {}, seedRandom('empty')), []);
+});
+
+test('pickQuestions avoids excluded questions until fresh supply runs out', () => {
+  const withId = bank.map(q => ({ ...q, _id: questionId(q) }));
+  // Exclude a chunk larger than a round; a full round should avoid all of them
+  const excludeIds = withId.slice(0, 40).map(q => q._id);
+  const picked = pickQuestions(withId, 15, { diffPools: DIFF_POOLS.medium, exclude: new Set(excludeIds) }, seedRandom('excl'));
+  assert.equal(picked.length, 15);
+  assert.ok(picked.every(q => !excludeIds.includes(q._id)), 'a recently-seen question leaked into the round');
+
+  // When exclude covers nearly everything, it clamps rather than starving
+  const nearlyAll = new Set(withId.slice(0, withId.length - 5).map(q => q._id));
+  const forced = pickQuestions(withId, 15, { diffPools: DIFF_POOLS.medium, exclude: nearlyAll }, seedRandom('excl2'));
+  assert.equal(forced.length, 15);
+  assert.equal(new Set(forced).size, forced.length, 'exclude fallback produced duplicates');
+});
+
+test('buildSurvivalQueue ramps difficulty and never repeats a question', () => {
+  const q = buildSurvivalQueue(bank, seedRandom('surv'));
+  assert.equal(q.length, bank.length, 'queue should hold the whole bank');
+  assert.equal(new Set(q).size, q.length, 'queue contains duplicates');
+  // First five are easy; hard questions never appear before position 15
+  assert.ok(q.slice(0, 5).every(x => x.d === 1), 'opening questions must be easy');
+  assert.ok(q.slice(0, 15).every(x => x.d <= 2), 'hard questions surfaced too early');
+  // Once the ramp reaches the top it stays hard until the d3 supply drains
+  // (an endless queue eventually falls back to leftover easier questions)
+  assert.ok(q.slice(25, 100).every(x => x.d === 3), 'the peak of the ramp must be hard');
+});
+
+test('questionId is stable per text and differs across questions', () => {
+  assert.equal(questionId({ q: 'مرحبا' }), questionId({ q: 'مرحبا' }));
+  assert.notEqual(questionId({ q: 'أ' }), questionId({ q: 'ب' }));
+  const ids = new Set(bank.map(questionId));
+  assert.equal(ids.size, bank.length, 'question id collision within the bank');
+});
+
+test('daily streak continues across consecutive days and resets after a gap', () => {
+  const today = dailyKeyFor(new Date(2026, 6, 20));
+  const yesterday = dayBeforeKey(today);
+  const twoDaysAgo = dayBeforeKey(yesterday);
+
+  // First ever completion → streak 1
+  assert.equal(nextDailyStreak(null, 0, today), 1);
+  // Played yesterday → increment
+  assert.equal(nextDailyStreak(yesterday, 4, today), 5);
+  // Gap of a day → reset to 1
+  assert.equal(nextDailyStreak(twoDaysAgo, 9, today), 1);
+
+  // Display: yesterday keeps the count, an older gap shows a broken streak
+  assert.equal(displayedDailyStreak(yesterday, 4, today), 4);
+  assert.equal(displayedDailyStreak(today, 4, today), 4);
+  assert.equal(displayedDailyStreak(twoDaysAgo, 9, today), 0);
+  assert.equal(displayedDailyStreak(null, 0, today), 0);
+});
+
+test('dayBeforeKey crosses month and year boundaries', () => {
+  assert.equal(dayBeforeKey('2026-03-01'), '2026-02-28');
+  assert.equal(dayBeforeKey('2026-01-01'), '2025-12-31');
+  assert.equal(dayBeforeKey('2024-03-01'), '2024-02-29'); // leap year
 });

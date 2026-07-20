@@ -11,9 +11,9 @@ const Storage = (() => {
     DAILY: 'quiz_daily_last',
     DAILY_SCORE: 'quiz_daily_score',
     DAILY_STREAK: 'quiz_daily_streak',
-    SETTINGS: 'quiz_settings',
     CATS_PLAYED: 'quiz_cats_played',
-    BEST_MODES: 'quiz_best_modes'
+    BEST_MODES: 'quiz_best_modes',
+    RECENT: 'quiz_recent_questions'
   };
 
   const get = (key, fallback = null) => {
@@ -58,31 +58,36 @@ const Storage = (() => {
     history.unshift({ ...entry, date: new Date().toISOString() });
     set(KEYS.HISTORY, history.slice(0, 10));
   };
-  const clearHistory = () => remove(KEYS.HISTORY);
+
+  // Recently played question ids — keeps consecutive rounds from repeating
+  const getRecent = () => get(KEYS.RECENT, []) || [];
+  const pushRecent = (ids, cap = 120) => {
+    if (!ids || !ids.length) return;
+    set(KEYS.RECENT, ids.concat(getRecent()).slice(0, cap));
+  };
 
   // Achievements
   const getAchievements = () => get(KEYS.ACHIEVEMENTS, []) || [];
-  const hasAchievement = (id) => getAchievements().includes(id);
   const unlockAchievement = (id) => {
     const list = getAchievements();
     if (!list.includes(id)) { list.push(id); set(KEYS.ACHIEVEMENTS, list); return true; }
     return false;
   };
 
-  // Daily challenge
-  const getDailyKey = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-  };
+  // Daily challenge (streak math lives in utils.js so it can be unit tested)
+  const getDailyKey = () => dailyKeyFor(new Date());
   const isDailyDone = () => get(KEYS.DAILY) === getDailyKey();
   const setDailyDone = (score) => {
-    set(KEYS.DAILY, getDailyKey());
+    const today = getDailyKey();
+    const streak = nextDailyStreak(get(KEYS.DAILY), get(KEYS.DAILY_STREAK, 0) || 0, today);
+    set(KEYS.DAILY, today);
     set(KEYS.DAILY_SCORE, score);
-    const streak = (get(KEYS.DAILY_STREAK, 0) || 0) + 1;
     set(KEYS.DAILY_STREAK, streak);
     return streak;
   };
-  const getDailyStreak = () => get(KEYS.DAILY_STREAK, 0) || 0;
+  // Reflect a broken streak (a gap of more than one day) when reading it back.
+  const getDailyStreak = () =>
+    displayedDailyStreak(get(KEYS.DAILY), get(KEYS.DAILY_STREAK, 0) || 0, getDailyKey());
   const getDailyScore = () => get(KEYS.DAILY_SCORE, 0) || 0;
 
   // Per-mode best scores (survival / timeattack)
@@ -104,10 +109,6 @@ const Storage = (() => {
     return list;
   };
 
-  // Settings
-  const getSettings = () => get(KEYS.SETTINGS, {}) || {};
-  const updateSettings = (patch) => set(KEYS.SETTINGS, { ...getSettings(), ...patch });
-
   // Reset all
   const resetAll = () => {
     Object.values(KEYS).forEach(k => remove(k));
@@ -118,12 +119,12 @@ const Storage = (() => {
     getBest, setBest,
     isMuted, setMuted,
     getTheme, setTheme,
-    getHistory, addHistory, clearHistory,
-    getAchievements, hasAchievement, unlockAchievement,
+    getHistory, addHistory,
+    getRecent, pushRecent,
+    getAchievements, unlockAchievement,
     isDailyDone, setDailyDone, getDailyStreak, getDailyScore, getDailyKey,
     getModeBest, setModeBest,
     getPlayedCategories, addPlayedCategory,
-    getSettings, updateSettings,
     resetAll
   };
 })();

@@ -43,13 +43,25 @@ function prepareQuestions(list, rng) {
 // opts.category: restrict to one category ('all' = no restriction).
 // opts.diffPools: difficulty filters from strict to widest, e.g.
 // [[2,3],[1,2,3]] — used to top up when the strict pool runs short.
+// opts.exclude: a Set of question ids (q._id) to deprioritise so recently
+//   played questions only reappear once fresher ones run out.
 // Never returns undefined slots; clamps to what is available.
 function pickQuestions(pool, count, opts = {}, rng = Math.random) {
-  const { category = 'all', diffPools = [null] } = opts;
+  const { category = 'all', diffPools = [null], exclude = new Set() } = opts;
 
   const base = category === 'all' ? pool : pool.filter(q => q.cat === category);
   const first = diffPools[0];
   let filtered = first ? base.filter(q => first.includes(q.d)) : base;
+
+  // Shuffle a bucket, floating not-recently-seen questions to the front so
+  // exclude only bites when the fresh supply is exhausted. With an empty
+  // exclude this is a plain shuffle (identical rng consumption as before).
+  const prioritize = (arr) => {
+    if (!exclude.size) return shuffleArrayWith(arr, rng);
+    const fresh = arr.filter(q => !exclude.has(q._id));
+    const stale = arr.filter(q => exclude.has(q._id));
+    return shuffleArrayWith(fresh, rng).concat(shuffleArrayWith(stale, rng));
+  };
 
   // Balanced pick per category
   const cats = {};
@@ -57,7 +69,9 @@ function pickQuestions(pool, count, opts = {}, rng = Math.random) {
     if (!cats[q.cat]) cats[q.cat] = [];
     cats[q.cat].push(q);
   });
-  const catKeys = Object.keys(cats);
+  // Shuffle the category order so the remainder slot isn't always handed to
+  // whichever category happens to sort first in the bank.
+  const catKeys = shuffleArrayWith(Object.keys(cats), rng);
   if (!catKeys.length) return [];
   const perCat = Math.floor(count / catKeys.length);
   const remainder = count % catKeys.length;
@@ -65,14 +79,14 @@ function pickQuestions(pool, count, opts = {}, rng = Math.random) {
   let selected = [];
   catKeys.forEach((cat, i) => {
     const c = perCat + (i < remainder ? 1 : 0);
-    selected = selected.concat(shuffleArrayWith(cats[cat], rng).slice(0, c));
+    selected = selected.concat(prioritize(cats[cat]).slice(0, c));
   });
 
   // Top up: first from the rest of the same pool, then wider pools
   if (selected.length < count) {
     const chosen = new Set(selected);
     const topUp = (candidates) => {
-      const rest = shuffleArrayWith(candidates.filter(q => !chosen.has(q)), rng);
+      const rest = prioritize(candidates.filter(q => !chosen.has(q)));
       for (const q of rest) {
         if (selected.length >= count) break;
         selected.push(q);
@@ -89,6 +103,78 @@ function pickQuestions(pool, count, opts = {}, rng = Math.random) {
   return shuffleArrayWith(selected, rng);
 }
 
+// Build a survival queue whose difficulty genuinely ramps: the first few
+// questions are easy, then easy/medium, then medium/hard, then hard —
+// instead of serving every easy question before the first medium one.
+function buildSurvivalQueue(pool, rng) {
+  const bands = { 1: [], 2: [], 3: [] };
+  pool.forEach(q => { if (bands[q.d]) bands[q.d].push(q); });
+  for (const d of [1, 2, 3]) bands[d] = shuffleArrayWith(bands[d], rng);
+  const idx = { 1: 0, 2: 0, 3: 0 };
+  const remaining = (d) => idx[d] < bands[d].length;
+
+  // Allowed difficulty band by position (0-based) in the queue.
+  const allowedAt = (i) => {
+    if (i < 5) return [1];
+    if (i < 15) return [1, 2];
+    if (i < 25) return [2, 3];
+    return [3];
+  };
+
+  const queue = [];
+  for (let i = 0; i < pool.length; i++) {
+    let avail = allowedAt(i).filter(remaining);
+    // Once a band is drained, fall back to whatever is left (hardest first).
+    if (!avail.length) avail = [3, 2, 1].filter(remaining);
+    if (!avail.length) break;
+    const d = avail[Math.floor(rng() * avail.length)];
+    queue.push(bands[d][idx[d]++]);
+  }
+  return queue;
+}
+
+// Stable short id derived from question text — used to track recently seen
+// questions without editing the bank. djb2 hash, base36.
+function questionId(q) {
+  const s = String((q && q.q) || '');
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+// ---- Daily-challenge streak math (pure, so it can be unit tested) ----
+// Format a Date as the local 'YYYY-MM-DD' key used for the daily challenge.
+function dailyKeyFor(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// The daily key for the day before the given 'YYYY-MM-DD' key.
+function dayBeforeKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - 1);
+  return dailyKeyFor(dt);
+}
+
+// New streak value after completing today's challenge: continue when the
+// last completion was yesterday, otherwise restart at 1.
+function nextDailyStreak(lastKey, prevStreak, todayKey) {
+  if (lastKey === todayKey) return prevStreak || 1;
+  if (lastKey === dayBeforeKey(todayKey)) return (prevStreak || 0) + 1;
+  return 1;
+}
+
+// Streak to display: a gap of more than one day means the streak is broken.
+function displayedDailyStreak(lastKey, storedStreak, todayKey) {
+  if (!lastKey) return 0;
+  if (lastKey === todayKey || lastKey === dayBeforeKey(todayKey)) return storedStreak || 0;
+  return 0;
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { seedRandom, shuffleArrayWith, prepareQuestions, pickQuestions };
+  module.exports = {
+    seedRandom, shuffleArrayWith, prepareQuestions, pickQuestions,
+    buildSurvivalQueue, questionId,
+    dailyKeyFor, dayBeforeKey, nextDailyStreak, displayedDailyStreak
+  };
 }
