@@ -29,7 +29,7 @@ for (const a of assets) {
 }
 
 // Every deployable file must be listed (game files served to the browser)
-const DEPLOY_DIRS = ['js', 'data', 'lib', 'icons'];
+const DEPLOY_DIRS = ['js', 'data', 'lib', 'icons', 'fonts'];
 const DEPLOY_FILES = ['index.html', 'styles.css', 'manifest.json'];
 const deployable = [...DEPLOY_FILES];
 for (const dir of DEPLOY_DIRS) {

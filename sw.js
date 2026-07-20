@@ -3,7 +3,7 @@
 // ============================================================
 // CACHE_NAME must be bumped on every release that changes any cached asset,
 // and ASSETS must list every deployable file (checked by scripts/validate-sw.mjs)
-const CACHE_NAME = 'mind-challenge-v8';
+const CACHE_NAME = 'mind-challenge-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -16,14 +16,42 @@ const ASSETS = [
   './js/game.js',
   './data/questions.json',
   './lib/three.min.js',
+  './fonts/fonts.css',
+  './fonts/amiri-400-arabic.woff2',
+  './fonts/amiri-400-latin-ext.woff2',
+  './fonts/amiri-400-latin.woff2',
+  './fonts/amiri-700-arabic.woff2',
+  './fonts/amiri-700-latin-ext.woff2',
+  './fonts/amiri-700-latin.woff2',
+  './fonts/tajawal-400-arabic.woff2',
+  './fonts/tajawal-400-latin.woff2',
+  './fonts/tajawal-500-arabic.woff2',
+  './fonts/tajawal-500-latin.woff2',
+  './fonts/tajawal-700-arabic.woff2',
+  './fonts/tajawal-700-latin.woff2',
+  './fonts/tajawal-800-arabic.woff2',
+  './fonts/tajawal-800-latin.woff2',
+  './fonts/tajawal-900-arabic.woff2',
+  './fonts/tajawal-900-latin.woff2',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-512-maskable.png',
   './icons/favicon.svg'
 ];
 
-// Icons may fail without breaking the app; everything else is critical.
+// Icons and the heavier Latin font subsets may fail without breaking the
+// app (Arabic subsets and fonts.css are what the UI actually needs);
+// everything else is critical.
 const OPTIONAL = new Set([
+  './fonts/amiri-400-latin-ext.woff2',
+  './fonts/amiri-400-latin.woff2',
+  './fonts/amiri-700-latin-ext.woff2',
+  './fonts/amiri-700-latin.woff2',
+  './fonts/tajawal-400-latin.woff2',
+  './fonts/tajawal-500-latin.woff2',
+  './fonts/tajawal-700-latin.woff2',
+  './fonts/tajawal-800-latin.woff2',
+  './fonts/tajawal-900-latin.woff2',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-512-maskable.png',
