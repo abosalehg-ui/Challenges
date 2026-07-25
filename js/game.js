@@ -68,6 +68,7 @@ const DEFAULT_KEYS = {
   next:  'Enter',
   fifty: 'KeyH',
   mute:  'KeyM',
+  theme: 'KeyT',
   pause: 'KeyP',
   exit:  'Escape'
 };
@@ -75,6 +76,7 @@ const KEY_ACTIONS = [
   { id: 'next',  label: 'الانتقال للسؤال التالي' },
   { id: 'fifty', label: 'استخدام 50:50' },
   { id: 'mute',  label: 'كتم/تشغيل الصوت' },
+  { id: 'theme', label: 'تبديل السمة' },
   { id: 'pause', label: 'إيقاف مؤقت' },
   { id: 'exit',  label: 'العودة للقائمة' }
 ];
@@ -311,6 +313,26 @@ function applyTheme(theme) {
   document.body.dataset.theme = theme;
   Storage.setTheme(theme);
   if (typeof Scene !== 'undefined' && Scene.setTheme) Scene.setTheme(theme);
+
+  const night = theme === 'night';
+  const btn = $('btnTheme');
+  if (btn) {
+    // Shows the theme you are in, like the mute button does — the label says
+    // what pressing it will do.
+    btn.textContent = night ? '🌙' : '☀️';
+    const to = night ? 'النهارية' : 'الليلية';
+    btn.setAttribute('aria-label', `السمة ${night ? 'الليلية' : 'النهارية'} — التبديل إلى السمة ${to}`);
+    btn.title = `التبديل إلى السمة ${to}`;
+  }
+  // Keeps the mobile browser's own chrome in step with the theme instead of
+  // leaving a dark address bar sitting above a light page.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', night ? '#1a0a2e' : '#FFF8E7');
+}
+
+function toggleTheme() {
+  audio.play('click');
+  applyTheme(Storage.getTheme() === 'night' ? 'day' : 'night');
 }
 
 function applyReducedMotion(on) {
@@ -1158,19 +1180,11 @@ function showHistory() {
 // ============================================================
 function showSettings() {
   audio.play('click');
-  document.querySelectorAll('input[name="theme"]').forEach(r => {
-    r.checked = (r.value === Storage.getTheme());
-  });
   $('settingMute').checked = Storage.isMuted();
   $('settingMotion').checked = Storage.isReducedMotion();
   applyVolume(Storage.getVolume());
   renderKeybinds();
   showScreen('settingsScreen');
-}
-
-function onThemeChange(e) {
-  applyTheme(e.target.value);
-  audio.play('click');
 }
 
 function resetAllData() {
@@ -1360,6 +1374,7 @@ function onKeyDown(e) {
   const screen = gameState.screen;
 
   if (code === keybinds.mute) { toggleMute(); return; }
+  if (code === keybinds.theme) { toggleTheme(); return; }
 
   if (code === keybinds.pause && (inRound() || gameState.phase === PHASE.PAUSED)) {
     e.preventDefault();
@@ -1478,9 +1493,6 @@ async function init() {
   applyVolume(Storage.getVolume());
 
   // Settings inputs
-  document.querySelectorAll('input[name="theme"]').forEach(r => {
-    r.addEventListener('change', onThemeChange);
-  });
   $('settingMute')?.addEventListener('change', (e) => applyMute(e.target.checked));
   $('settingMotion')?.addEventListener('change', (e) => applyReducedMotion(e.target.checked));
   $('settingVolume')?.addEventListener('input', (e) => applyVolume(Number(e.target.value)));

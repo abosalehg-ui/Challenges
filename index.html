@@ -16,9 +16,10 @@
 <canvas id="three-canvas" aria-hidden="true"></canvas>
 <div class="overlay" aria-hidden="true"></div>
 
-<!-- Top bar (mute + back) -->
+<!-- Top bar: always-reachable controls (sound, theme, pause, home) -->
 <div class="top-bar">
   <button class="icon-btn" id="btnMute" onclick="toggleMute()" aria-label="كتم الصوت" aria-pressed="false" title="كتم/تشغيل الصوت">🔊</button>
+  <button class="icon-btn" id="btnTheme" onclick="toggleTheme()" aria-label="تبديل السمة" title="تبديل السمة">🌙</button>
   <button class="icon-btn" id="btnPause" onclick="togglePause()" aria-label="إيقاف مؤقت" title="إيقاف مؤقت">⏸️</button>
   <button class="icon-btn" id="btnBack" onclick="requestExit()" aria-label="العودة للقائمة" title="القائمة الرئيسية">🏠</button>
 </div>
@@ -216,19 +217,6 @@
   <div class="screen" id="settingsScreen" role="region" aria-label="الإعدادات">
     <h2 class="section-title">⚙️ الإعدادات</h2>
     <div class="settings-list">
-      <div class="setting-group">
-        <div class="setting-label">السمة</div>
-        <div class="theme-options">
-          <label class="theme-option">
-            <input type="radio" name="theme" value="night" checked>
-            <span>🌙 ليلي</span>
-          </label>
-          <label class="theme-option">
-            <input type="radio" name="theme" value="day">
-            <span>☀️ نهاري</span>
-          </label>
-        </div>
-      </div>
       <div class="setting-group">
         <div class="setting-row">
           <label for="settingMute" class="setting-label" style="margin: 0; cursor: pointer;">كتم الصوت</label>
