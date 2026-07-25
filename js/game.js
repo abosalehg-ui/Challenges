@@ -672,12 +672,16 @@ function elapsedOnQuestion() {
 function selectAnswer(idx) {
   if (gameState.phase !== PHASE.AWAITING) return;
   gameState.phase = PHASE.REVEALING;
+
+  // Read the elapsed time before stopping the clock: stop() zeroes its
+  // remaining time, which would make every answer look like it used the full
+  // question — no speed bonus, ever.
+  const timeTaken = Math.max(0, elapsedOnQuestion());
   questionClock.stop();
   if (gameState.mode !== 'timeattack') freezeTimerBar();
 
   const q = gameState.questions[gameState.currentQ];
   const btns = document.querySelectorAll('.answer-btn');
-  const timeTaken = Math.max(0, elapsedOnQuestion());
   gameState.totalTime += timeTaken;
   gameState.answeredCount++;
 
