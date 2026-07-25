@@ -133,6 +133,43 @@ function buildSurvivalQueue(pool, rng) {
   return queue;
 }
 
+// ---- Scoring (pure, so the balance is unit-testable) ----
+// STREAK_CAP is the fix for a runaway curve: the bonus used to grow linearly
+// without limit, so by question 20 a streak was worth 200 against a base of
+// 100 and two thirds of a score came from round length rather than skill.
+const SCORING = {
+  BASE: 100,
+  SPEED_WINDOW: 5,   // seconds within which a speed bonus is earned
+  SPEED_MAX: 50,     // maximum speed bonus
+  STREAK_MIN: 3,     // streak length at which the bonus starts
+  STREAK_STEP: 10,
+  STREAK_CAP: 10     // streak length beyond which the bonus stops growing
+};
+
+// `streak` is the streak *including* this answer. Returns the points awarded
+// and the raw streak bonus (for the on-screen popup).
+function scoreAnswer(timeTaken, streak, multiplier) {
+  let points = SCORING.BASE;
+  if (timeTaken < SCORING.SPEED_WINDOW) {
+    points += Math.round((SCORING.SPEED_WINDOW - timeTaken) / SCORING.SPEED_WINDOW * SCORING.SPEED_MAX);
+  }
+  let streakBonus = 0;
+  if (streak >= SCORING.STREAK_MIN) {
+    streakBonus = Math.min(streak, SCORING.STREAK_CAP) * SCORING.STREAK_STEP;
+    points += streakBonus;
+  }
+  return { points: Math.round(points * multiplier), streakBonus };
+}
+
+// Which high-score board a round belongs to. Difficulty levels used to share a
+// single global record, which made "hard" strictly dominant (a perfect hard
+// round scored ~4.8x a perfect easy one) and left easy and medium unable to
+// ever register a personal best. One board per level fixes that.
+function boardKey(mode, difficulty) {
+  if (mode === 'survival' || mode === 'timeattack' || mode === 'daily') return mode;
+  return `${mode}:${difficulty}`;
+}
+
 // Stable short id derived from question text — used to track recently seen
 // questions without editing the bank. djb2 hash, base36.
 function questionId(q) {
@@ -175,6 +212,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     seedRandom, shuffleArrayWith, prepareQuestions, pickQuestions,
     buildSurvivalQueue, questionId,
-    dailyKeyFor, dayBeforeKey, nextDailyStreak, displayedDailyStreak
+    dailyKeyFor, dayBeforeKey, nextDailyStreak, displayedDailyStreak,
+    SCORING, scoreAnswer, boardKey
   };
 }
