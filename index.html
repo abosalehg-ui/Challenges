@@ -10,7 +10,6 @@
 <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="styles.css">
-<script src="lib/three.min.js"></script>
 </head>
 <body>
 
@@ -19,8 +18,20 @@
 
 <!-- Top bar (mute + back) -->
 <div class="top-bar">
-  <button class="icon-btn" id="btnMute" onclick="toggleMute()" aria-label="كتم الصوت" aria-pressed="false" title="كتم/تشغيل الصوت (M)">🔊</button>
-  <button class="icon-btn" id="btnBack" onclick="requestExit()" aria-label="العودة للقائمة" title="القائمة الرئيسية (Esc)">🏠</button>
+  <button class="icon-btn" id="btnMute" onclick="toggleMute()" aria-label="كتم الصوت" aria-pressed="false" title="كتم/تشغيل الصوت">🔊</button>
+  <button class="icon-btn" id="btnPause" onclick="togglePause()" aria-label="إيقاف مؤقت" title="إيقاف مؤقت">⏸️</button>
+  <button class="icon-btn" id="btnBack" onclick="requestExit()" aria-label="العودة للقائمة" title="القائمة الرئيسية">🏠</button>
+</div>
+
+<!-- PAUSE OVERLAY -->
+<div class="pause-overlay" id="pauseOverlay" role="dialog" aria-modal="true" aria-label="اللعبة متوقفة">
+  <div class="pause-card">
+    <div class="pause-icon" aria-hidden="true">⏸️</div>
+    <h2 class="pause-title">الجولة متوقفة</h2>
+    <p class="pause-hint">العداد متوقف — خذ وقتك.</p>
+    <button class="btn-result btn-retry" id="btnResume" onclick="resumeGame()">▶️ متابعة</button>
+    <button class="btn-secondary" onclick="quitFromPause()">🏠 إنهاء الجولة</button>
+  </div>
 </div>
 
 <div class="streak-display" id="streakDisplay" aria-live="polite">🔥 سلسلة: <span id="streakCount">0</span></div>
@@ -43,11 +54,26 @@
     <div class="daily-streak" id="dailyStreak"></div>
 
     <div class="modes-grid">
-      <button class="mode-btn" id="btnClassic" onclick="chooseMode('classic')" aria-label="ابدأ الوضع الكلاسيكي">🎯 كلاسيكي</button>
-      <button class="mode-btn" id="btnDaily" onclick="chooseMode('daily')" aria-label="ابدأ تحدي اليوم">📅 تحدي اليوم</button>
-      <button class="mode-btn" id="btnCategory" onclick="chooseMode('category')" aria-label="العب في فئة محددة">🗂️ حسب الفئة</button>
-      <button class="mode-btn" id="btnSurvival" onclick="chooseMode('survival')" aria-label="ابدأ وضع البقاء: خطأ واحد ينهي الجولة">🛡️ البقاء</button>
-      <button class="mode-btn" id="btnTimeattack" onclick="chooseMode('timeattack')" aria-label="ابدأ وضع ضد الساعة: أكبر عدد إجابات في دقيقتين">⏱️ ضد الساعة</button>
+      <button class="mode-btn" id="btnClassic" onclick="chooseMode('classic')">
+        <span class="mode-label">🎯 كلاسيكي</span>
+        <span class="mode-meta">اختر مستواك • جولة كاملة</span>
+      </button>
+      <button class="mode-btn" id="btnDaily" onclick="chooseMode('daily')">
+        <span class="mode-label">📅 تحدي اليوم</span>
+        <span class="mode-meta">10 أسئلة تتغير كل يوم</span>
+      </button>
+      <button class="mode-btn" id="btnCategory" onclick="chooseMode('category')">
+        <span class="mode-label">🗂️ حسب الفئة</span>
+        <span class="mode-meta">العب في مجال تختاره</span>
+      </button>
+      <button class="mode-btn" id="btnSurvival" onclick="chooseMode('survival')">
+        <span class="mode-label">🛡️ البقاء</span>
+        <span class="mode-meta">صعوبة متصاعدة • خطأ واحد ينهي الجولة</span>
+      </button>
+      <button class="mode-btn" id="btnTimeattack" onclick="chooseMode('timeattack')">
+        <span class="mode-label">⏱️ ضد الساعة</span>
+        <span class="mode-meta">أكبر عدد إجابات صحيحة في دقيقتين</span>
+      </button>
     </div>
 
     <div class="secondary-buttons">
@@ -65,6 +91,7 @@
         <div class="difficulty-icon">🟢</div>
         <div class="difficulty-info">
           <div class="difficulty-label">سهل</div>
+          <div class="difficulty-record" id="record-easy"></div>
           <div class="difficulty-meta">10 أسئلة • 20 ثانية لكل سؤال • نقاط ×0.8</div>
         </div>
       </button>
@@ -72,6 +99,7 @@
         <div class="difficulty-icon">🟡</div>
         <div class="difficulty-info">
           <div class="difficulty-label">متوسط</div>
+          <div class="difficulty-record" id="record-medium"></div>
           <div class="difficulty-meta">15 سؤال • 15 ثانية لكل سؤال</div>
         </div>
       </button>
@@ -79,6 +107,7 @@
         <div class="difficulty-icon">🔴</div>
         <div class="difficulty-info">
           <div class="difficulty-label">صعب</div>
+          <div class="difficulty-record" id="record-hard"></div>
           <div class="difficulty-meta">20 سؤال • 10 ثوانٍ • نقاط ×1.5</div>
         </div>
       </button>
@@ -98,10 +127,10 @@
     <div class="game-header">
       <div class="score-display">
         <span class="score-icon" aria-hidden="true">⭐</span>
-        <span class="score-value" id="scoreValue" aria-live="polite" aria-label="النقاط">0</span>
+        <span class="score-value" id="scoreValue" aria-live="off" aria-label="النقاط">0</span>
       </div>
       <div class="mode-indicator" id="modeIndicator"></div>
-      <div class="question-counter" id="questionCounter" aria-live="polite">1 / 15</div>
+      <div class="question-counter" id="questionCounter" aria-live="off">1 / 15</div>
     </div>
 
     <div class="timer-container" aria-label="العداد الزمني">
@@ -113,7 +142,7 @@
 
     <div class="question-row">
       <div class="category-badge" id="categoryBadge"></div>
-      <button class="btn-fifty" id="btnFifty" onclick="useFifty()" aria-label="مساعدة احذف إجابتين خاطئتين" title="50:50 (H)">✂️ 50:50</button>
+      <button class="btn-fifty" id="btnFifty" onclick="useFifty()" aria-label="مساعدة احذف إجابتين خاطئتين" title="احذف إجابتين خاطئتين">✂️ 50:50</button>
     </div>
 
     <div class="question-card">
@@ -153,10 +182,11 @@
         </div>
       </div>
       <div class="result-buttons">
-        <button class="btn-result btn-retry" onclick="restartGame()" aria-label="ابدأ تحدياً جديداً">🔄 جولة جديدة</button>
+        <button class="btn-result btn-retry" id="btnRetry" onclick="replayRound()">🔄 العب مرة أخرى</button>
         <button class="btn-result btn-share" onclick="shareResult()" aria-label="شارك النتيجة">📤 شارك</button>
       </div>
       <button class="btn-secondary btn-review" id="btnReview" onclick="showReview()" aria-label="مراجعة الأسئلة التي أخطأت فيها">📝 مراجعة الأخطاء</button>
+      <button class="btn-secondary btn-review" onclick="backToStart()">🏠 القائمة الرئيسية</button>
     </div>
   </div>
 
@@ -207,16 +237,30 @@
             <span class="toggle-switch" role="presentation"></span>
           </label>
         </div>
+        <div class="setting-row">
+          <label for="settingVolume" class="setting-label" style="margin: 0;">مستوى الصوت</label>
+          <span class="setting-value" id="volumeValue">70%</span>
+        </div>
+        <input type="range" id="settingVolume" class="setting-range" min="0" max="100" step="5" value="70" aria-label="مستوى الصوت">
+      </div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <label for="settingMotion" class="setting-label" style="margin: 0; cursor: pointer;">تقليل الحركة والوميض</label>
+          <label style="cursor: pointer;">
+            <input type="checkbox" id="settingMotion" class="setting-toggle" aria-label="تقليل الحركة والوميض">
+            <span class="toggle-switch" role="presentation"></span>
+          </label>
+        </div>
+        <p class="setting-hint">يوقف الخلفية المتحركة والجسيمات واهتزاز الإجابة الخاطئة.</p>
       </div>
       <div class="setting-group">
         <div class="setting-label">اختصارات لوحة المفاتيح</div>
-        <div style="font-size: 0.85rem; color: var(--sand); line-height: 1.8;">
-          <div><kbd>1-4</kbd> اختيار الإجابة</div>
-          <div><kbd>Enter</kbd> / <kbd>Space</kbd> التالي</div>
-          <div><kbd>M</kbd> كتم/تشغيل الصوت</div>
-          <div><kbd>H</kbd> استخدام 50:50</div>
-          <div><kbd>Esc</kbd> العودة للقائمة</div>
+        <p class="setting-hint">اضغط على أي اختصار لتغييره، ثم اضغط المفتاح الجديد.</p>
+        <div class="keybind-list" id="keybindList"></div>
+        <div class="setting-static-keys">
+          <div><kbd>1</kbd> – <kbd>4</kbd> اختيار الإجابة</div>
         </div>
+        <button class="btn-secondary" onclick="resetKeybinds()" style="margin-top: 10px;">↺ استعادة الافتراضي</button>
       </div>
       <div class="setting-group">
         <div class="setting-label">إعادة التعيين</div>
@@ -232,10 +276,11 @@
 <div class="copyright">تصميم عبدالكريم العبود • abo.saleh.g@gmail.com</div>
 <div class="share-toast" id="shareToast" role="status" aria-live="polite">✅ تم نسخ النتيجة!</div>
 
-<script src="js/utils.js"></script>
-<script src="js/storage.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/scene.js"></script>
-<script src="js/game.js"></script>
+<script defer src="js/utils.js"></script>
+<script defer src="js/storage.js"></script>
+<script defer src="js/audio.js"></script>
+<script defer src="js/gl.js"></script>
+<script defer src="js/scene.js"></script>
+<script defer src="js/game.js"></script>
 </body>
 </html>

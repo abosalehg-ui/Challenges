@@ -3,7 +3,7 @@
 // ============================================================
 // CACHE_NAME must be bumped on every release that changes any cached asset,
 // and ASSETS must list every deployable file (checked by scripts/validate-sw.mjs)
-const CACHE_NAME = 'mind-challenge-v9';
+const CACHE_NAME = 'mind-challenge-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -12,10 +12,10 @@ const ASSETS = [
   './js/utils.js',
   './js/storage.js',
   './js/audio.js',
+  './js/gl.js',
   './js/scene.js',
   './js/game.js',
   './data/questions.json',
-  './lib/three.min.js',
   './fonts/fonts.css',
   './fonts/amiri-400-arabic.woff2',
   './fonts/amiri-400-latin-ext.woff2',
@@ -72,8 +72,14 @@ self.addEventListener('install', (event) => {
           )
         )
       )
-    ).then(() => self.skipWaiting())
+    )
   );
+});
+
+// The page posts this once it is not mid-round; until then the new worker
+// waits rather than activating (and dropping the old cache) underneath it.
+self.addEventListener('message', (event) => {
+  if (event.data === 'skip-waiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

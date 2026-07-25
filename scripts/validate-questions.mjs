@@ -77,6 +77,17 @@ questions.forEach((q, i) => {
   }
 });
 
+// The category map is rendered into the UI the same way question text is, so
+// it needs the same guard — the check used to stop at the questions array.
+for (const [key, meta] of Object.entries(data.categories || {})) {
+  if (!meta || typeof meta !== 'object') { err(`category "${key}": not an object`); continue; }
+  for (const field of ['label', 'icon']) {
+    const v = meta[field];
+    if (typeof v !== 'string' || !v.trim()) err(`category "${key}": "${field}" must be a non-empty string`);
+    else if (/[<>]/.test(v)) err(`category "${key}": "<" or ">" is not allowed in "${field}"`);
+  }
+}
+
 // Distribution table + coverage warnings
 const dist = {};
 categories.forEach(c => { dist[c] = { 1: 0, 2: 0, 3: 0 }; });

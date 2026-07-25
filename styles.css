@@ -16,13 +16,23 @@
   --gold: #D4A017;
   --gold-bright: #FFD700;
   --brown: #8B4513;
-  --brown-dark: #5C2E00;
+  /* Text colour for the gold-filled buttons. Darkened from #5C2E00, which
+     only reached 4.2:1 against the darker end of the gradient. */
+  --brown-dark: #402E02;
   --night: #1a0a2e;
   --night-mid: #2d1b4e;
   --accent-teal: #00CED1;
   --accent-orange: #FF6B35;
   --correct: #2ECC71;
   --wrong: #E74C3C;
+
+  /* Fill-only brand colours. These paint surfaces that carry their own dark
+     text (--brown-dark), so they must stay bright in BOTH themes — unlike the
+     tokens above, which the day theme re-tones for contrast. Keep them as
+     literals so a theme override of --gold can never leak in here. */
+  --fill-gold: #D4A017;
+  --fill-gold-bright: #FFD700;
+  --fill-sand-dark: #C4954A;
 }
 
 body[data-theme="night"], body:not([data-theme]) {
@@ -47,6 +57,19 @@ body[data-theme="day"] {
   --header-bg: rgba(255,255,255,0.5);
   --header-border: rgba(139,69,19,0.25);
   --overlay-grad: linear-gradient(180deg, rgba(255,248,231,0.2) 0%, rgba(244,232,193,0.1) 40%, rgba(212,160,23,0.1) 100%);
+
+  /* The accent palette is tuned for the dark theme; over a light background the
+     same values collapse to ~1.8:1 and the day theme becomes unreadable.
+     Re-tone every token that ends up as text or as answer state so the day
+     theme clears WCAG AA (4.5:1 body text, 3:1 UI). Surfaces that carry their
+     own dark text use the --fill-* literals above and are unaffected. */
+  --sand: #6D4C2F;        /* secondary text — 7.0:1 (was 1.75:1) */
+  --sand-light: #5C3D22;
+  --sand-dark: #8A6400;
+  --gold: #8A6400;        /* accents / borders — 4.8:1 (was 2.24:1) */
+  --gold-bright: #7A5200; /* headings, values, focus ring — 6.4:1 */
+  --correct: #157F43;     /* answer state — 4.9:1 (was 1.98:1) */
+  --wrong: #B3261E;       /* answer state — 6.2:1 (was 3.61:1) */
 }
 
 body {
@@ -54,7 +77,10 @@ body {
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
+  /* 100vh includes the mobile browser's collapsible toolbar, so the bottom of
+     the layout is clipped on iOS/Android. dvh tracks the real viewport. */
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   direction: rtl;
 }
@@ -80,11 +106,15 @@ body {
   z-index: 2;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  /* viewport-fit=cover lets the page run under the notch and home indicator,
+     so every fixed edge needs the safe-area inset added to its padding. */
+  padding: calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+           calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
   overflow-y: auto;
 }
 
@@ -93,8 +123,8 @@ body {
    ============================================================ */
 .top-bar {
   position: fixed;
-  top: 12px;
-  inset-inline-start: 12px;
+  top: calc(12px + env(safe-area-inset-top));
+  inset-inline-start: calc(12px + env(safe-area-inset-left));
   z-index: 50;
   display: flex;
   gap: 8px;
@@ -114,6 +144,9 @@ body {
   transition: transform 0.2s, background 0.2s;
 }
 .icon-btn:hover { transform: scale(1.1); }
+/* Pause is only meaningful while a round is in flight */
+#btnPause { display: none; }
+body[data-screen="gameScreen"] #btnPause { display: flex; }
 .icon-btn:focus-visible {
   outline: 2px solid var(--gold-bright);
   outline-offset: 2px;
@@ -131,6 +164,7 @@ body {
   animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .screen.active { display: flex; }
+.screen:focus { outline: none; }
 
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(20px); }
@@ -142,7 +176,7 @@ body {
    ============================================================ */
 .game-logo {
   width: 130px; height: 130px;
-  background: radial-gradient(circle, var(--gold-bright), var(--gold), var(--brown));
+  background: radial-gradient(circle, var(--fill-gold-bright), var(--fill-gold), var(--brown));
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 16px;
@@ -212,10 +246,10 @@ body {
   margin-bottom: 14px;
 }
 .mode-btn {
-  background: linear-gradient(135deg, var(--gold), var(--sand-dark));
+  background: linear-gradient(135deg, var(--fill-gold), var(--fill-sand-dark));
   color: var(--brown-dark);
   border: none;
-  padding: 16px 12px;
+  padding: 13px 12px;
   font-size: 1.05rem;
   font-weight: 800;
   font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
@@ -223,6 +257,22 @@ body {
   cursor: pointer;
   transition: all 0.25s;
   box-shadow: 0 6px 20px rgba(212,160,23,0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 76px;
+  text-align: center;
+}
+.mode-label { font-size: 1.05rem; font-weight: 800; line-height: 1.2; }
+/* The rules of each mode used to exist only inside aria-label, so a sighted
+   player could not learn that one mistake ends a survival round until it did. */
+.mode-meta {
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  opacity: 0.82;
 }
 .mode-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(212,160,23,0.5); }
 .mode-btn.completed {
@@ -310,6 +360,8 @@ body {
 .difficulty-info { flex: 1; }
 .difficulty-label { font-size: 1.2rem; font-weight: 800; color: var(--gold-bright); }
 .difficulty-meta { font-size: 0.85rem; color: var(--sand); opacity: 0.85; margin-top: 2px; }
+.difficulty-record { font-size: 0.8rem; font-weight: 700; color: var(--gold-bright); margin-top: 3px; }
+.difficulty-record:empty { display: none; }
 
 /* ============================================================
    CATEGORY SCREEN
@@ -554,9 +606,40 @@ body[data-theme="day"] .answer-btn { background: rgba(255,255,255,0.6); border-c
   pointer-events: none;
   opacity: 0.5;
 }
+/* Every answer is disabled once one is picked, but the two that carry the
+   result must not be dimmed — that is the feedback the player is reading. */
+.answer-btn.disabled.correct,
+.answer-btn.disabled.reveal-correct,
+.answer-btn.disabled.wrong {
+  opacity: 1;
+}
 .answer-btn.reveal-correct {
   background: rgba(46,204,113,0.18) !important;
   border-color: var(--correct) !important;
+  color: var(--correct) !important;
+}
+body[data-theme="day"] .answer-btn.correct { background: rgba(21,127,67,0.16) !important; }
+body[data-theme="day"] .answer-btn.reveal-correct { background: rgba(21,127,67,0.10) !important; }
+body[data-theme="day"] .answer-btn.wrong { background: rgba(179,38,30,0.14) !important; }
+
+/* Answer state must never be carried by colour alone: red/green is invisible
+   to red-green colour blindness, and prefers-reduced-motion strips the pop and
+   shake animations that were the only other cue. A glyph works for both. */
+.answer-btn.correct::after,
+.answer-btn.reveal-correct::after,
+.answer-btn.wrong::after {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.answer-btn.correct::after, .answer-btn.reveal-correct::after {
+  content: '✓';
+  color: var(--correct);
+}
+.answer-btn.wrong::after {
+  content: '✗';
+  color: var(--wrong);
 }
 .answer-btn.faded {
   opacity: 0.25;
@@ -595,7 +678,7 @@ body[data-theme="day"] .answer-btn { background: rgba(255,255,255,0.6); border-c
   color: var(--text);
 }
 .explanation-next {
-  background: linear-gradient(135deg, var(--gold), var(--sand-dark));
+  background: linear-gradient(135deg, var(--fill-gold), var(--fill-sand-dark));
   color: var(--brown-dark);
   border: none;
   padding: 10px 18px;
@@ -680,7 +763,7 @@ body[data-theme="day"] .answer-btn { background: rgba(255,255,255,0.6); border-c
 
 .new-record {
   display: none;
-  background: linear-gradient(135deg, var(--gold), var(--accent-orange));
+  background: linear-gradient(135deg, var(--fill-gold), var(--accent-orange));
   color: var(--brown-dark);
   padding: 8px 24px;
   border-radius: 30px;
@@ -743,7 +826,7 @@ body[data-theme="day"] .stat-item { background: rgba(0,0,0,0.05); border-color: 
   gap: 6px;
 }
 .btn-retry {
-  background: linear-gradient(135deg, var(--gold), var(--sand-dark));
+  background: linear-gradient(135deg, var(--fill-gold), var(--fill-sand-dark));
   color: var(--brown-dark);
 }
 .btn-share {
@@ -969,17 +1052,18 @@ input.setting-toggle:checked + .toggle-switch::after {
 .share-toast.visible { transform: translateX(-50%) translateY(0); }
 .share-toast[data-type="wrong"] { background: var(--wrong); }
 .share-toast[data-type="achieve"] {
-  background: linear-gradient(135deg, var(--gold), var(--accent-orange));
+  background: linear-gradient(135deg, var(--fill-gold), var(--accent-orange));
   color: var(--brown-dark);
 }
 
 .copyright {
   position: fixed;
-  bottom: 8px;
+  bottom: calc(8px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.7rem;
-  color: rgba(222,184,135,0.4);
+  color: var(--sand);
+  opacity: 0.75;
   z-index: 5;
   text-align: center;
   white-space: nowrap;
@@ -1017,6 +1101,132 @@ input.setting-toggle:checked + .toggle-switch::after {
   height: 8px;
   border-radius: 50%;
   pointer-events: none;
+}
+
+/* ============================================================
+   PAUSE OVERLAY
+   ============================================================ */
+.pause-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+}
+body[data-theme="day"] .pause-overlay { background: rgba(60,40,20,0.45); }
+.pause-overlay.visible { display: flex; }
+.pause-card {
+  background: var(--card-bg-strong);
+  border: 1px solid var(--card-border);
+  border-radius: 22px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: fadeSlideUp 0.3s ease;
+}
+.pause-icon { font-size: 42px; }
+.pause-title {
+  font-family: 'Amiri', 'Noto Naskh Arabic', 'Times New Roman', serif;
+  font-size: 1.6rem;
+  color: var(--gold-bright);
+}
+.pause-hint { font-size: 0.85rem; color: var(--sand); margin-bottom: 6px; }
+.pause-card .btn-result, .pause-card .btn-secondary { width: 100%; justify-content: center; }
+
+/* ============================================================
+   SETTINGS — volume, motion, key rebinding
+   ============================================================ */
+.setting-value { font-size: 0.85rem; font-weight: 700; color: var(--gold-bright); }
+.setting-hint {
+  font-size: 0.8rem;
+  color: var(--sand);
+  line-height: 1.6;
+  margin-top: 6px;
+}
+.setting-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: rgba(212,160,23,0.25);
+  cursor: pointer;
+}
+body[data-theme="day"] .setting-range { background: rgba(138,100,0,0.25); }
+.setting-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--fill-gold);
+  border: 2px solid var(--brown-dark);
+  cursor: pointer;
+}
+.setting-range::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--fill-gold);
+  border: 2px solid var(--brown-dark);
+  cursor: pointer;
+}
+.setting-range:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 4px; }
+
+.keybind-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.keybind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+.keybind-btn {
+  min-width: 84px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: rgba(212,160,23,0.12);
+  color: var(--gold-bright);
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.keybind-btn:hover { border-color: var(--gold); }
+.keybind-btn:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 2px; }
+.keybind-btn.listening {
+  background: var(--fill-gold);
+  color: var(--brown-dark);
+  border-color: var(--fill-gold);
+}
+.keybind-btn.conflict { border-color: var(--wrong); color: var(--wrong); }
+.setting-static-keys {
+  font-size: 0.82rem;
+  color: var(--sand);
+  line-height: 1.8;
+  margin-top: 10px;
+}
+
+/* ============================================================
+   IN-APP REDUCED MOTION — mirrors the OS media query below, for players
+   whose system preference is unset but who still want the motion gone.
+   ============================================================ */
+body[data-reduced-motion="1"] *,
+body[data-reduced-motion="1"] *::before,
+body[data-reduced-motion="1"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
 
 /* ============================================================

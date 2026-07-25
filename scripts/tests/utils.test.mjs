@@ -12,7 +12,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const {
   seedRandom, shuffleArrayWith, prepareQuestions, pickQuestions,
   buildSurvivalQueue, questionId,
-  dailyKeyFor, dayBeforeKey, nextDailyStreak, displayedDailyStreak
+  dailyKeyFor, dayBeforeKey, nextDailyStreak, displayedDailyStreak,
+  SCORING, scoreAnswer, boardKey
 } = require(join(root, 'js', 'utils.js'));
 
 const bank = JSON.parse(readFileSync(join(root, 'data', 'questions.json'), 'utf8')).questions;
@@ -135,4 +136,56 @@ test('dayBeforeKey crosses month and year boundaries', () => {
   assert.equal(dayBeforeKey('2026-03-01'), '2026-02-28');
   assert.equal(dayBeforeKey('2026-01-01'), '2025-12-31');
   assert.equal(dayBeforeKey('2024-03-01'), '2024-02-29'); // leap year
+});
+
+// ---- scoring & high-score boards ----
+
+test('scoreAnswer awards base, speed and streak components', () => {
+  // Slow answer, no streak: base only
+  assert.deepEqual(scoreAnswer(9, 1, 1), { points: 100, streakBonus: 0 });
+  // Instant answer earns the full speed bonus
+  assert.equal(scoreAnswer(0, 1, 1).points, SCORING.BASE + SCORING.SPEED_MAX);
+  // The streak bonus starts at STREAK_MIN, not before
+  assert.equal(scoreAnswer(9, SCORING.STREAK_MIN - 1, 1).streakBonus, 0);
+  assert.equal(scoreAnswer(9, SCORING.STREAK_MIN, 1).streakBonus, SCORING.STREAK_MIN * SCORING.STREAK_STEP);
+  // Difficulty multiplier applies to the total
+  assert.equal(scoreAnswer(9, 1, 1.5).points, 150);
+});
+
+test('the streak bonus stops growing at STREAK_CAP', () => {
+  const cap = SCORING.STREAK_CAP;
+  assert.equal(scoreAnswer(9, cap, 1).streakBonus, cap * SCORING.STREAK_STEP);
+  for (const streak of [cap + 1, cap + 10, 100]) {
+    assert.equal(
+      scoreAnswer(9, streak, 1).streakBonus,
+      cap * SCORING.STREAK_STEP,
+      `streak ${streak} kept compounding past the cap`
+    );
+  }
+});
+
+test('no difficulty is more than ~4.5x another on a perfect round', () => {
+  // Regression guard on the balance: the uncapped streak bonus used to make a
+  // perfect hard round worth 4.85x a perfect easy one on a *shared* board.
+  const LEVELS = { easy: { n: 10, mult: 0.8 }, medium: { n: 15, mult: 1.0 }, hard: { n: 20, mult: 1.5 } };
+  const perfect = ({ n, mult }) => {
+    let total = 0;
+    for (let i = 1; i <= n; i++) total += scoreAnswer(2.5, i, mult).points;
+    return total;
+  };
+  const scores = Object.fromEntries(Object.entries(LEVELS).map(([k, v]) => [k, perfect(v)]));
+  assert.ok(scores.easy < scores.medium && scores.medium < scores.hard, 'harder must still score higher');
+  assert.ok(scores.hard / scores.easy < 4.5, `hard/easy ratio too wide: ${scores.hard / scores.easy}`);
+});
+
+test('boardKey separates difficulty levels but not arcade modes', () => {
+  // Each level keeps its own record, so easy and medium can be competed for
+  assert.notEqual(boardKey('classic', 'easy'), boardKey('classic', 'hard'));
+  assert.equal(boardKey('classic', 'easy'), 'classic:easy');
+  assert.notEqual(boardKey('classic', 'easy'), boardKey('category', 'easy'));
+  // Arcade and daily rounds have no difficulty selection, so one board each
+  for (const mode of ['survival', 'timeattack', 'daily']) {
+    assert.equal(boardKey(mode, 'medium'), mode);
+    assert.equal(boardKey(mode, 'hard'), mode);
+  }
 });

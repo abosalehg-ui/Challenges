@@ -13,7 +13,10 @@ const Storage = (() => {
     DAILY_STREAK: 'quiz_daily_streak',
     CATS_PLAYED: 'quiz_cats_played',
     BEST_MODES: 'quiz_best_modes',
-    RECENT: 'quiz_recent_questions'
+    RECENT: 'quiz_recent_questions',
+    VOLUME: 'quiz_volume',
+    MOTION: 'quiz_reduced_motion',
+    KEYBINDS: 'quiz_keybinds'
   };
 
   const get = (key, fallback = null) => {
@@ -35,12 +38,24 @@ const Storage = (() => {
     try { localStorage.removeItem(key); return true; } catch { return false; }
   };
 
-  // Best score
-  const getBest = () => parseInt(get(KEYS.BEST, '0')) || 0;
-  const setBest = (score) => {
-    const current = getBest();
-    if (score > current) { set(KEYS.BEST, score.toString()); return true; }
+  // ---- High-score boards ----
+  // One board per mode+difficulty (see boardKey in utils.js). BEST_MODES holds
+  // them all; KEYS.BEST is the pre-boards global record, kept read-only so an
+  // existing player's number is never silently erased.
+  const getBoards = () => get(KEYS.BEST_MODES, {}) || {};
+  const getBoardBest = (key) => getBoards()[key] || 0;
+  const setBoardBest = (key, score) => {
+    const all = getBoards();
+    if (score > (all[key] || 0)) { all[key] = score; set(KEYS.BEST_MODES, all); return true; }
     return false;
+  };
+
+  const getLegacyBest = () => parseInt(get(KEYS.BEST, '0')) || 0;
+  // Headline figure for the start screen: the best across every board, plus
+  // the legacy record so upgrading players keep their number.
+  const getBest = () => {
+    const boards = getBoards();
+    return Object.values(boards).reduce((m, v) => Math.max(m, Number(v) || 0), getLegacyBest());
   };
 
   // Mute
@@ -90,16 +105,21 @@ const Storage = (() => {
     displayedDailyStreak(get(KEYS.DAILY), get(KEYS.DAILY_STREAK, 0) || 0, getDailyKey());
   const getDailyScore = () => get(KEYS.DAILY_SCORE, 0) || 0;
 
-  // Per-mode best scores (survival / timeattack)
-  const getModeBest = (mode) => {
-    const all = get(KEYS.BEST_MODES, {}) || {};
-    return all[mode] || 0;
+  // ---- Accessibility / audio settings ----
+  const getVolume = () => {
+    const v = parseInt(get(KEYS.VOLUME, '70'));
+    return Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 70;
   };
-  const setModeBest = (mode, score) => {
-    const all = get(KEYS.BEST_MODES, {}) || {};
-    if (score > (all[mode] || 0)) { all[mode] = score; set(KEYS.BEST_MODES, all); return true; }
-    return false;
+  const setVolume = (v) => set(KEYS.VOLUME, String(Math.min(100, Math.max(0, v | 0))));
+
+  const isReducedMotion = () => get(KEYS.MOTION, false) === true || get(KEYS.MOTION) === 'true';
+  const setReducedMotion = (v) => set(KEYS.MOTION, !!v);
+
+  const getKeybinds = () => {
+    const v = get(KEYS.KEYBINDS, null);
+    return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
   };
+  const setKeybinds = (map) => set(KEYS.KEYBINDS, map || {});
 
   // Categories played (for the category-explorer achievement)
   const getPlayedCategories = () => get(KEYS.CATS_PLAYED, []) || [];
@@ -116,14 +136,17 @@ const Storage = (() => {
 
   return {
     KEYS, get, set, remove,
-    getBest, setBest,
+    getBest,
     isMuted, setMuted,
     getTheme, setTheme,
     getHistory, addHistory,
     getRecent, pushRecent,
     getAchievements, unlockAchievement,
     isDailyDone, setDailyDone, getDailyStreak, getDailyScore, getDailyKey,
-    getModeBest, setModeBest,
+    getBoardBest, setBoardBest,
+    getVolume, setVolume,
+    isReducedMotion, setReducedMotion,
+    getKeybinds, setKeybinds,
     getPlayedCategories, addPlayedCategory,
     resetAll
   };
