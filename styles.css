@@ -1039,19 +1039,6 @@ input.setting-toggle:checked + .toggle-switch::after {
   color: var(--brown-dark);
 }
 
-.copyright {
-  position: fixed;
-  bottom: calc(8px + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.7rem;
-  color: var(--sand);
-  opacity: 0.75;
-  z-index: 5;
-  text-align: center;
-  white-space: nowrap;
-}
-
 .bonus-popup {
   position: fixed;
   top: 50%;
