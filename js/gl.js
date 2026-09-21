@@ -30,14 +30,19 @@ const GL = (() => {
     },
 
     multiply(a, b) {
-      const o = new Float32Array(16);
+      return m4.multiplyInto(new Float32Array(16), a, b);
+    },
+
+    // Same product, written into a caller-owned buffer. The render loop uses
+    // this so a frame allocates nothing. `out` must not alias `a` or `b`.
+    multiplyInto(out, a, b) {
       for (let c = 0; c < 4; c++) {
         for (let r = 0; r < 4; r++) {
-          o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] +
-                         a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
+          out[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] +
+                           a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
         }
       }
-      return o;
+      return out;
     },
 
     translation(x, y, z) {
@@ -58,16 +63,20 @@ const GL = (() => {
     // reusing a fixed orientation — the original called lookAt once at startup
     // and then only slid the camera, so the rotation must not track the eye.
     viewFromBasis(basis, eye) {
+      return m4.viewFromBasisInto(new Float32Array(16), basis, eye);
+    },
+
+    // As above, into a caller-owned buffer — the camera slides every frame.
+    viewFromBasisInto(out, basis, eye) {
       const [xa, ya, za] = basis;
-      return new Float32Array([
-        xa[0], ya[0], za[0], 0,
-        xa[1], ya[1], za[1], 0,
-        xa[2], ya[2], za[2], 0,
-        -(xa[0] * eye[0] + xa[1] * eye[1] + xa[2] * eye[2]),
-        -(ya[0] * eye[0] + ya[1] * eye[1] + ya[2] * eye[2]),
-        -(za[0] * eye[0] + za[1] * eye[1] + za[2] * eye[2]),
-        1
-      ]);
+      out[0] = xa[0]; out[1] = ya[0]; out[2] = za[0]; out[3] = 0;
+      out[4] = xa[1]; out[5] = ya[1]; out[6] = za[1]; out[7] = 0;
+      out[8] = xa[2]; out[9] = ya[2]; out[10] = za[2]; out[11] = 0;
+      out[12] = -(xa[0] * eye[0] + xa[1] * eye[1] + xa[2] * eye[2]);
+      out[13] = -(ya[0] * eye[0] + ya[1] * eye[1] + ya[2] * eye[2]);
+      out[14] = -(za[0] * eye[0] + za[1] * eye[1] + za[2] * eye[2]);
+      out[15] = 1;
+      return out;
     },
 
     // Orthonormal basis of a camera at `eye` looking at `target`, matching

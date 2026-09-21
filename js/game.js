@@ -22,8 +22,23 @@ const MODE = {
 // Arcade modes: endless question queue, no fixed round length
 const isArcadeMode = (mode) => mode === 'survival' || mode === 'timeattack';
 
-// In survival, points scale with the question's own difficulty
-const SURVIVAL_MULT = { 1: 1.0, 2: 1.25, 3: 1.5 };
+// Where a mode serves mixed difficulties, points scale with the question's
+// own difficulty so a lucky run of easy questions is not worth more than a
+// hard one. Survival always did this; time-attack now does too.
+const DIFF_BONUS = { 1: 1.0, 2: 1.25, 3: 1.5 };
+
+// Time-attack draws from the easy/medium bands only. Pulling from the whole
+// bank left the score mostly to the luck of the shuffle: a d3 question costs
+// several seconds of reading out of 120, so two runs of the same skill could
+// differ by more than the skill ever would.
+const TA_DIFFS = [1, 2];
+
+// A wrong answer in time-attack costs seconds. Without it the mode had no
+// downside to guessing at all, and blind tapping outscored careful play:
+// measured at 15,090 points for tapping through 442 questions against 5,400
+// for answering 28 in a row correctly. The clock is the only currency the
+// mode has, so that is what a mistake spends.
+const TA_WRONG_PENALTY_S = 3;
 
 // Time-attack pacing. Every millisecond here is taken straight out of the
 // player's 120 seconds, so the reveal is only long enough to read the result:
@@ -31,18 +46,10 @@ const SURVIVAL_MULT = { 1: 1.0, 2: 1.25, 3: 1.5 };
 const TA_REVEAL_MS = 250;
 const ROUND_INTRO_MS = 300;
 
-// A round is one of these at any moment. This replaces the answered /
-// advancing / roundEnded flag soup, where each flag had been added to patch a
-// specific input bug and their interactions were only true by inspection.
-const PHASE = {
-  IDLE: 'idle',             // menus; no round in flight
-  PRESENTING: 'presenting', // question rendering — input intentionally dead
-  AWAITING: 'awaiting',     // the only phase that accepts an answer
-  REVEALING: 'revealing',   // answer shown / explanation up
-  ADVANCING: 'advancing',   // moving to the next question
-  PAUSED: 'paused',
-  ENDED: 'ended'
-};
+// PHASE and the flow that owns it live in js/round.js, so the transition
+// rules can be unit-tested without a browser. Read the phase with
+// `Round.phase`; move it with `Round.set` / `Round.begin`, never by assignment.
+const Round = createRoundFlow();
 
 const ACHIEVEMENTS = [
   { id: 'first_game',     label: 'أول جولة',           desc: 'أكمل أول جولة في اللعبة',                icon: '🎮' },
@@ -84,8 +91,6 @@ let keybinds = { ...DEFAULT_KEYS };
 let listeningFor = null; // action id currently capturing a new key
 
 let gameState = {
-  phase: PHASE.IDLE,
-  phaseBeforePause: PHASE.IDLE,
   screen: 'startScreen',
   currentQ: 0,
   score: 0,
@@ -170,6 +175,22 @@ function createClock() {
       if (raf) cancelAnimationFrame(raf);
       raf = 0; total = 0; left = 0; onTick = null; onDone = null;
     },
+    // Take `seconds` off the clock, never below zero. Returns what was
+    // actually taken, so the UI can report the real cost near the end of a
+    // round. If this empties the clock, the next frame ends the round the
+    // same way running out normally would.
+    penalize(seconds) {
+      if (!total || !(seconds > 0)) return 0;
+      const remaining = running ? Math.max(0, (endsAt - performance.now()) / 1000) : left;
+      const cost = Math.min(seconds, remaining);
+      if (running) {
+        endsAt -= cost * 1000;
+        left = Math.max(0, (endsAt - performance.now()) / 1000);
+      } else {
+        left = remaining - cost;
+      }
+      return cost;
+    },
     get left() { return left; },
     get running() { return running; }
   };
@@ -219,14 +240,21 @@ const DIFF_POOLS = {
   hard:   [[2, 3], [1, 2, 3]]
 };
 
+// Easy/medium only — see TA_DIFFS. Falls back to the whole bank if a future
+// edit ever leaves those bands empty, so the mode can never fail to start.
+function timeAttackPool() {
+  const pool = allQuestions.filter(q => TA_DIFFS.includes(q.d));
+  return pool.length ? pool : allQuestions;
+}
+
 function selectQuestions() {
   // Arcade queues: survival ramps difficulty by position,
-  // time-attack draws from the whole shuffled bank
+  // time-attack shuffles its own easy/medium pool
   if (gameState.mode === 'survival') {
     return prepareQuestions(buildSurvivalQueue(allQuestions, Math.random), Math.random);
   }
   if (gameState.mode === 'timeattack') {
-    return prepareQuestions(shuffleArray(allQuestions), Math.random);
+    return prepareQuestions(shuffleArray(timeAttackPool()), Math.random);
   }
 
   if (gameState.mode === 'daily') {
@@ -258,7 +286,7 @@ function ensureQueue() {
   if (gameState.currentQ >= gameState.questions.length) {
     const extra = gameState.mode === 'survival'
       ? buildSurvivalQueue(allQuestions, Math.random)
-      : shuffleArray(allQuestions);
+      : shuffleArray(timeAttackPool());
     gameState.questions = gameState.questions.concat(prepareQuestions(extra, Math.random));
     gameState.questionsCount = gameState.questions.length;
   }
@@ -475,7 +503,7 @@ function startGameNow() {
   roundClock.stop();
 
   gameState.currentQ = 0;
-  gameState.phase = PHASE.PRESENTING;
+  Round.set(PHASE.PRESENTING);
   gameState.score = 0;
   gameState.streak = 0;
   gameState.maxStreak = 0;
@@ -496,7 +524,7 @@ function startGameNow() {
 
   if (!gameState.questionsCount) {
     showToast('❌ لا توجد أسئلة متاحة', 'wrong');
-    gameState.phase = PHASE.IDLE;
+    Round.set(PHASE.IDLE);
     showScreen('startScreen');
     return;
   }
@@ -508,6 +536,7 @@ function startGameNow() {
   const fiftyBtn = $('btnFifty');
   fiftyBtn.style.display = 'flex';
   fiftyBtn.classList.remove('used');
+  fiftyBtn.removeAttribute('aria-disabled');
 
   // Mode indicator
   const modeInd = $('modeIndicator');
@@ -518,7 +547,11 @@ function startGameNow() {
     if (gameState.mode === 'daily') {
       modeInd.textContent = gameState.dailyPractice ? `${m.icon} ${m.label} • تدريب` : `${m.icon} ${m.label}`;
     } else if (isArcadeMode(gameState.mode)) {
-      modeInd.textContent = `${m.icon} ${m.label}`;
+      // Both arcade modes have scoring rules the player cannot see anywhere
+      // else: the difficulty bonus, and what a mistake costs.
+      modeInd.textContent = gameState.mode === 'survival'
+        ? `${m.icon} ${m.label} • الأصعب ×1.5`
+        : `${m.icon} ${m.label} • الخطأ −${TA_WRONG_PENALTY_S}ث`;
     } else if (gameState.mode === 'category' && cc) {
       modeInd.textContent = `${cc.icon} ${cc.label} • ${d.icon}`;
     } else {
@@ -535,14 +568,15 @@ function startGameNow() {
   $('timerText').textContent = total;
 
   showScreen('gameScreen');
-  setTimeout(beginRound, ROUND_INTRO_MS);
+  Round.begin(PHASE.PRESENTING, ROUND_INTRO_MS, beginRound);
 }
 
 // The time-attack clock starts here rather than alongside the screen
 // transition — it used to run during the intro, handing the player a round
 // that was already half a second old before the first question appeared.
+// Round.begin owns the phase guard, so a round abandoned during the intro
+// never reaches this.
 function beginRound() {
-  if (gameState.phase !== PHASE.PRESENTING) return;
   if (gameState.mode === 'timeattack') startRoundClock();
   showQuestion();
 }
@@ -554,7 +588,7 @@ function showQuestion() {
     return;
   }
 
-  gameState.phase = PHASE.PRESENTING;
+  Round.set(PHASE.PRESENTING);
   const q = gameState.questions[gameState.currentQ];
 
   $('questionCounter').textContent = isArcadeMode(gameState.mode)
@@ -593,7 +627,14 @@ function showQuestion() {
   if (exp) exp.classList.remove('visible');
 
   gameState.qStartRemaining = roundClock.left;
-  gameState.phase = PHASE.AWAITING;
+  Round.set(PHASE.AWAITING);
+
+  // The element that had focus (the explanation's "next" button) is gone by
+  // now, so focus fell back to <body>: keyboard users lost their place and a
+  // screen reader announced nothing. Focus the question text rather than the
+  // first answer — landing focus on a button would turn the Space that
+  // advanced the last question into an accidental answer on this one.
+  $('questionText').focus({ preventScroll: true });
 
   // Time-attack keeps its single round countdown; every other mode gets a
   // per-question timer.
@@ -666,7 +707,7 @@ function startQuestionClock() {
       lastTick = secCeil;
     }
   }, () => {
-    if (gameState.phase === PHASE.AWAITING) timeUp();
+    if (Round.phase === PHASE.AWAITING) timeUp();
   });
 }
 
@@ -692,8 +733,8 @@ function elapsedOnQuestion() {
 // ANSWERING
 // ============================================================
 function selectAnswer(idx) {
-  if (gameState.phase !== PHASE.AWAITING) return;
-  gameState.phase = PHASE.REVEALING;
+  if (Round.phase !== PHASE.AWAITING) return;
+  Round.set(PHASE.REVEALING);
 
   // Read the elapsed time before stopping the clock: stop() zeroes its
   // remaining time, which would make every answer look like it used the full
@@ -709,11 +750,9 @@ function selectAnswer(idx) {
 
   btns.forEach(b => b.classList.add('disabled'));
 
-  const diffMult = gameState.mode === 'survival'
-    ? (SURVIVAL_MULT[q.d] || 1.0)
-    : gameState.mode === 'timeattack'
-      ? 1.0
-      : (DIFFICULTY[gameState.difficulty]?.mult || 1.0);
+  const diffMult = isArcadeMode(gameState.mode)
+    ? (DIFF_BONUS[q.d] || 1.0)
+    : (DIFFICULTY[gameState.difficulty]?.mult || 1.0);
 
   if (idx === q.c) {
     btns[idx].classList.add('correct');
@@ -745,14 +784,19 @@ function selectAnswer(idx) {
     $('streakDisplay').classList.remove('visible');
     gameState.mistakes.push({ q: q.q, cat: q.cat, correct: q.a[q.c], chosen: q.a[idx], e: q.e });
     if (gameState.mode === 'survival') gameState.eliminated = true;
+    if (gameState.mode === 'timeattack') {
+      const lost = roundClock.penalize(TA_WRONG_PENALTY_S);
+      // The bar is a CSS transition armed for the old end time, so it has to
+      // be re-armed against the shortened clock or it lies about the round.
+      armTimerBar(roundClock.left, MODE.timeattack.total);
+      if (lost > 0) showBonusPopup(`−${lost.toFixed(0)}ث`, 'penalty');
+    }
   }
 
   // Time-attack skips the explanation card and auto-advances;
   // mistakes stay available in the post-round review
   if (gameState.mode === 'timeattack') {
-    setTimeout(() => {
-      if (gameState.phase === PHASE.REVEALING) advanceQuestion(0);
-    }, TA_REVEAL_MS);
+    Round.begin(PHASE.REVEALING, TA_REVEAL_MS, () => advanceQuestion(0));
     return;
   }
 
@@ -767,19 +811,18 @@ function showExplanation(q) {
 }
 
 // The ADVANCING phase is what stops a held Enter or a double tap from skipping
-// a question during the gap before the next one renders.
+// a question during the gap before the next one renders. Handing the delay to
+// Round.begin is what keeps the next question coming when the player pauses —
+// or is pulled away by a notification — inside that gap.
 function advanceQuestion(delayMs = 100) {
-  if (gameState.phase !== PHASE.REVEALING) return;
-  gameState.phase = PHASE.ADVANCING;
+  if (Round.phase !== PHASE.REVEALING) return;
   $('explanationCard')?.classList.remove('visible');
   gameState.currentQ++;
-  const go = () => { if (gameState.phase === PHASE.ADVANCING) showQuestion(); };
-  if (delayMs > 0) setTimeout(go, delayMs);
-  else requestAnimationFrame(go);
+  Round.begin(PHASE.ADVANCING, delayMs, showQuestion);
 }
 
 function timeUp() {
-  gameState.phase = PHASE.REVEALING;
+  Round.set(PHASE.REVEALING);
   audio.play('timeup');
 
   const q = gameState.questions[gameState.currentQ];
@@ -801,27 +844,31 @@ function timeUp() {
 // PAUSE
 // ============================================================
 const inRound = () => gameState.screen === 'gameScreen' &&
-  gameState.phase !== PHASE.ENDED && gameState.phase !== PHASE.IDLE;
+  Round.phase !== PHASE.ENDED && Round.phase !== PHASE.IDLE;
 
 function pauseGame() {
-  if (!inRound() || gameState.phase === PHASE.PAUSED) return;
-  gameState.phaseBeforePause = gameState.phase;
-  gameState.phase = PHASE.PAUSED;
+  if (!inRound()) return;
+  // Round.pause keeps any queued transition alive; resumeGame re-arms it.
+  if (!Round.pause()) return;
   questionClock.pause();
   roundClock.pause();
   freezeTimerBar();
   $('pauseOverlay').classList.add('visible');
+  setBackgroundInert(true);
   $('btnResume')?.focus({ preventScroll: true });
 }
 
 function resumeGame() {
-  if (gameState.phase !== PHASE.PAUSED) return;
+  if (Round.phase !== PHASE.PAUSED) return;
   audio.play('click');
   hidePause();
-  gameState.phase = gameState.phaseBeforePause;
+  // Restores the phase and re-arms a transition that was still queued, so a
+  // round paused between questions carries on instead of dying there.
+  const back = Round.resume();
   // A round that was paused mid-reveal resumes without restarting its clock;
-  // only a live question has a countdown to give back.
-  if (gameState.phase === PHASE.AWAITING) {
+  // only a live question has a countdown to give back. Time-attack has no
+  // per-question clock at all, so its bar is re-armed from the round clock.
+  if (back === PHASE.AWAITING && gameState.mode !== 'timeattack') {
     questionClock.resume();
     armTimerBar(questionClock.left, gameState.timePerQuestion);
   }
@@ -833,10 +880,21 @@ function resumeGame() {
 
 function hidePause() {
   $('pauseOverlay')?.classList.remove('visible');
+  setBackgroundInert(false);
+}
+
+// aria-modal="true" tells a screen reader the rest of the page is unavailable;
+// without this it was a promise the markup did not keep — Tab walked straight
+// out of the dialog into the answer buttons behind it.
+function setBackgroundInert(on) {
+  document.querySelectorAll('.game-container, .top-bar').forEach(el => {
+    if (on) el.setAttribute('inert', '');
+    else el.removeAttribute('inert');
+  });
 }
 
 function togglePause() {
-  if (gameState.phase === PHASE.PAUSED) resumeGame();
+  if (Round.phase === PHASE.PAUSED) resumeGame();
   else if (inRound()) { audio.play('click'); pauseGame(); }
 }
 
@@ -850,7 +908,7 @@ function quitFromPause() {
 // 50:50 LIFELINE
 // ============================================================
 function useFifty() {
-  if (gameState.fiftyUsed || gameState.phase !== PHASE.AWAITING) return;
+  if (gameState.fiftyUsed || Round.phase !== PHASE.AWAITING) return;
   audio.play('click');
   gameState.fiftyUsed = true;
 
@@ -863,15 +921,17 @@ function useFifty() {
     btns[i].disabled = true;
   });
 
-  $('btnFifty').classList.add('used');
+  const btn = $('btnFifty');
+  btn.classList.add('used');
+  btn.setAttribute('aria-disabled', 'true');
 }
 
 // ============================================================
 // END GAME
 // ============================================================
 function endGame() {
-  if (gameState.phase === PHASE.ENDED) return;
-  gameState.phase = PHASE.ENDED;
+  if (Round.phase === PHASE.ENDED) return;
+  Round.set(PHASE.ENDED);
   questionClock.stop();
   roundClock.stop();
   hidePause();
@@ -1054,7 +1114,7 @@ function backToStart() {
   questionClock.stop();
   roundClock.stop();
   hidePause();
-  gameState.phase = PHASE.IDLE;
+  Round.set(PHASE.IDLE);
   refreshStartScreen();
   showScreen('startScreen');
 }
@@ -1062,7 +1122,7 @@ function backToStart() {
 // Leaving mid-round discards all progress, so require a confirming second
 // press within 2s instead of quitting on a single stray Esc / home tap.
 function requestExit() {
-  if (gameState.phase === PHASE.PAUSED) return quitFromPause();
+  if (Round.phase === PHASE.PAUSED) return quitFromPause();
   if (inRound() && !gameState.exitArmed) {
     audio.play('click');
     gameState.exitArmed = true;
@@ -1317,25 +1377,36 @@ function copyToClipboard(text) {
   }
 }
 
+// execCommand('copy') returns false far more often than it throws — Safari
+// and iOS refuse it routinely. Ignoring the return value meant the player got
+// "copied!" over an empty clipboard and pasted nothing.
 function fallbackCopy(text, cb) {
   const ta = document.createElement('textarea');
   ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
   document.body.appendChild(ta);
   ta.select();
-  try { document.execCommand('copy'); } catch {}
+  ta.setSelectionRange(0, text.length); // iOS ignores select() on its own
+  let copied = false;
+  try { copied = document.execCommand('copy'); } catch { copied = false; }
   document.body.removeChild(ta);
-  cb && cb();
+  if (copied) cb && cb();
+  else showToast('⚠️ تعذّر النسخ — انسخ النتيجة يدوياً', 'wrong');
 }
 
 // ============================================================
 // VISUAL EFFECTS
 // ============================================================
-function showBonusPopup(text) {
+function showBonusPopup(text, type = '') {
   const popup = $('bonusPopup');
+  const base = 'bonus-popup' + (type ? ' ' + type : '');
   popup.textContent = text;
-  popup.className = 'bonus-popup visible';
-  setTimeout(() => popup.className = 'bonus-popup hide', 600);
-  setTimeout(() => popup.className = 'bonus-popup', 1000);
+  popup.className = base + ' visible';
+  clearTimeout(showBonusPopup._hide);
+  clearTimeout(showBonusPopup._clear);
+  showBonusPopup._hide = setTimeout(() => popup.className = base + ' hide', 600);
+  showBonusPopup._clear = setTimeout(() => popup.className = base, 1000);
 }
 
 function spawnParticles(count, color) {
@@ -1376,20 +1447,20 @@ function onKeyDown(e) {
   if (code === keybinds.mute) { toggleMute(); return; }
   if (code === keybinds.theme) { toggleTheme(); return; }
 
-  if (code === keybinds.pause && (inRound() || gameState.phase === PHASE.PAUSED)) {
+  if (code === keybinds.pause && (inRound() || Round.phase === PHASE.PAUSED)) {
     e.preventDefault();
     togglePause();
     return;
   }
 
-  if (gameState.phase === PHASE.PAUSED) {
+  if (Round.phase === PHASE.PAUSED) {
     if (code === 'Enter' || code === 'Space') { e.preventDefault(); resumeGame(); }
     else if (code === keybinds.exit) quitFromPause();
     return;
   }
 
   if (screen === 'gameScreen') {
-    if (gameState.phase === PHASE.AWAITING) {
+    if (Round.phase === PHASE.AWAITING) {
       let num = NaN;
       if (code.startsWith('Digit')) num = parseInt(code.slice(5));
       else if (code.startsWith('Numpad')) num = parseInt(code.slice(6));
@@ -1399,7 +1470,7 @@ function onKeyDown(e) {
         return;
       }
       if (code === keybinds.fifty) { useFifty(); return; }
-    } else if (gameState.phase === PHASE.REVEALING) {
+    } else if (Round.phase === PHASE.REVEALING) {
       // Time-attack auto-advances; a manual advance would skip a question
       if ((code === keybinds.next || code === 'Space') && gameState.mode !== 'timeattack') {
         e.preventDefault();
@@ -1414,6 +1485,36 @@ function onKeyDown(e) {
     else if (screen === 'gameScreen') requestExit();
     else backToStart();
   }
+}
+
+// ============================================================
+// ACTION DISPATCH
+// ============================================================
+// Buttons used to carry inline onclick handlers. That forced every interactive
+// function onto `window` and, more importantly, made a strict CSP impossible —
+// script-src 'self' rejects inline handlers outright. One delegated listener
+// over data-action keeps the markup declarative and lets index.html ship the
+// CSP it now has.
+const ACTIONS = {
+  toggleMute, toggleTheme, togglePause, requestExit,
+  resumeGame, quitFromPause,
+  chooseMode, chooseDifficulty,
+  useFifty, advanceQuestion,
+  replayRound, shareResult, showReview, backToResults,
+  showAchievements, showHistory, showSettings, backToStart,
+  resetKeybinds, resetAllData
+};
+
+function bindActions() {
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const fn = ACTIONS[el.dataset.action];
+    if (!fn) return;
+    // Only the actions that take one — advanceQuestion's delay is deliberately
+    // left undefined here so it keeps its default.
+    fn(el.dataset.arg);
+  });
 }
 
 // ============================================================
@@ -1476,6 +1577,7 @@ async function init() {
 
   await loadQuestions();
 
+  bindActions();
   document.addEventListener('keydown', onKeyDown);
 
   // A round should never keep burning the clock while the player is in another

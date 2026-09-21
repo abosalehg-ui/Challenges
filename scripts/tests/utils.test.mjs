@@ -143,13 +143,56 @@ test('dayBeforeKey crosses month and year boundaries', () => {
 test('scoreAnswer awards base, speed and streak components', () => {
   // Slow answer, no streak: base only
   assert.deepEqual(scoreAnswer(9, 1, 1), { points: 100, streakBonus: 0 });
-  // Instant answer earns the full speed bonus
-  assert.equal(scoreAnswer(0, 1, 1).points, SCORING.BASE + SCORING.SPEED_MAX);
+  // A fast-but-human answer earns most of the speed bonus
+  assert.ok(scoreAnswer(SCORING.SPEED_FLOOR, 1, 1).points > SCORING.BASE);
   // The streak bonus starts at STREAK_MIN, not before
   assert.equal(scoreAnswer(9, SCORING.STREAK_MIN - 1, 1).streakBonus, 0);
   assert.equal(scoreAnswer(9, SCORING.STREAK_MIN, 1).streakBonus, SCORING.STREAK_MIN * SCORING.STREAK_STEP);
   // Difficulty multiplier applies to the total
   assert.equal(scoreAnswer(9, 1, 1.5).points, 150);
+});
+
+test('the speed bonus is floored, so a reflex tap cannot outscore reading', () => {
+  // The time-attack exploit: with the bonus measured from zero, tapping an
+  // unread question scored the full +50 — more points per second than any
+  // amount of skill. Everything faster than SPEED_FLOOR now scores the same.
+  const floored = scoreAnswer(SCORING.SPEED_FLOOR, 1, 1).points;
+  for (const t of [0, 0.05, 0.27, SCORING.SPEED_FLOOR / 2]) {
+    assert.equal(scoreAnswer(t, 1, 1).points, floored, `${t}s beat the floor`);
+  }
+  assert.ok(floored < SCORING.BASE + SCORING.SPEED_MAX, 'the floor must cost something');
+
+  // Above the floor the bonus still rewards genuine speed, and still decays.
+  const quick = scoreAnswer(2, 1, 1).points;
+  const slow = scoreAnswer(4, 1, 1).points;
+  assert.ok(floored > quick && quick > slow, 'the speed curve must stay monotonic');
+  assert.equal(scoreAnswer(SCORING.SPEED_WINDOW + 1, 1, 1).points, SCORING.BASE);
+});
+
+test('blind tapping no longer beats careful play in time-attack', () => {
+  // The measured exploit, as a regression guard. A 120s round, a ~270ms tap
+  // cycle at chance accuracy, against reading each question in 4s and getting
+  // it right. Both now include the 3s penalty a wrong answer costs.
+  const ROUND_S = 120, PENALTY_S = 3;
+  const run = (cycleS, accuracy) => {
+    let t = 0, score = 0, streak = 0, answered = 0;
+    while (t < ROUND_S) {
+      t += cycleS;
+      answered++;
+      // Deterministic stand-in for `accuracy`: every Nth answer is correct.
+      if (accuracy >= 1 || answered % Math.round(1 / accuracy) === 0) {
+        streak++;
+        score += scoreAnswer(cycleS, streak, 1).points;
+      } else {
+        streak = 0;
+        t += PENALTY_S;
+      }
+    }
+    return score;
+  };
+  const spam = run(0.27, 0.25);
+  const careful = run(4, 1);
+  assert.ok(careful > spam, `blind tapping still wins: ${spam} vs ${careful}`);
 });
 
 test('the streak bonus stops growing at STREAK_CAP', () => {
