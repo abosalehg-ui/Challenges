@@ -157,6 +157,7 @@ const Scene = (() => {
   let userReducedMotion = false;
   let active = false;         // true while the game screen is showing
   let hidden = false;         // document.hidden
+  let contextLost = false;    // the GPU dropped our context; wait for restore
   let lastDraw = 0;
   let sandBase = null, sandPos = null;
 
@@ -171,6 +172,7 @@ const Scene = (() => {
   }
 
   function disposeMeshes() {
+    if (gl.isContextLost()) { meshes = {}; return; }
     Object.values(meshes).forEach(m => {
       if (!m) return;
       Object.values(m.buffers || {}).forEach(b => gl.deleteBuffer(b));
@@ -312,15 +314,22 @@ const Scene = (() => {
     gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
   }
 
-  function setCommon(prog, model, view) {
+  // GL.m4.multiply and viewFromBasis each returned a fresh Float32Array, so a
+  // frame allocated one per mesh plus one for the view — ~420 a second at
+  // 60fps, all of it garbage. Both now write into buffers owned by the module.
+  const viewMatrix = new Float32Array(16);
+  const modelViewMatrix = new Float32Array(16);
+
+  function setCommon(prog, model) {
     gl.uniformMatrix4fv(prog.uniforms.projectionMatrix, false, projection);
     gl.uniformMatrix4fv(prog.uniforms.modelMatrix, false, model);
-    gl.uniformMatrix4fv(prog.uniforms.modelViewMatrix, false, GL.m4.multiply(view, model));
+    GL.m4.multiplyInto(modelViewMatrix, viewMatrix, model);
+    gl.uniformMatrix4fv(prog.uniforms.modelViewMatrix, false, modelViewMatrix);
   }
 
   function render(t) {
-    if (!gl || !meshes.sky) return;
-    const view = GL.m4.viewFromBasis(viewBasis, cameraEye);
+    if (!gl || !meshes.sky || gl.isContextLost()) return;
+    GL.m4.viewFromBasisInto(viewMatrix, viewBasis, cameraEye);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -334,7 +343,7 @@ const Scene = (() => {
     gl.cullFace(gl.FRONT);
     let prog = programs.sky;
     gl.useProgram(prog.handle);
-    setCommon(prog, meshes.sky.model, view);
+    setCommon(prog, meshes.sky.model);
     gl.uniform3fv(prog.uniforms.topColor, meshes.sky.colors[0]);
     gl.uniform3fv(prog.uniforms.midColor, meshes.sky.colors[1]);
     gl.uniform3fv(prog.uniforms.bottomColor, meshes.sky.colors[2]);
@@ -347,7 +356,7 @@ const Scene = (() => {
     // Ground
     prog = programs.ground;
     gl.useProgram(prog.handle);
-    setCommon(prog, meshes.ground.model, view);
+    setCommon(prog, meshes.ground.model);
     gl.uniform3fv(prog.uniforms.color1, meshes.ground.colors[0]);
     gl.uniform3fv(prog.uniforms.color2, meshes.ground.colors[1]);
     gl.uniform1f(prog.uniforms.time, t);
@@ -359,7 +368,7 @@ const Scene = (() => {
     // Moon
     prog = programs.basic;
     gl.useProgram(prog.handle);
-    setCommon(prog, meshes.moon.model, view);
+    setCommon(prog, meshes.moon.model);
     gl.uniform3fv(prog.uniforms.color, meshes.moon.color);
     gl.uniform1f(prog.uniforms.opacity, 1);
     bindAttrib(prog, 'position', meshes.moon.buffers.position, 3);
@@ -375,7 +384,7 @@ const Scene = (() => {
       gl.disable(gl.CULL_FACE);
       prog = programs.star;
       gl.useProgram(prog.handle);
-      setCommon(prog, meshes.stars.model, view);
+      setCommon(prog, meshes.stars.model);
       gl.uniform1f(prog.uniforms.time, t);
       bindAttrib(prog, 'position', meshes.stars.buffers.position, 3);
       bindAttrib(prog, 'size', meshes.stars.buffers.size, 1);
@@ -387,7 +396,7 @@ const Scene = (() => {
     gl.depthMask(true);
     prog = programs.basic;
     gl.useProgram(prog.handle);
-    setCommon(prog, meshes.moonGlow.model, view);
+    setCommon(prog, meshes.moonGlow.model);
     gl.uniform3fv(prog.uniforms.color, meshes.moonGlow.color);
     gl.uniform1f(prog.uniforms.opacity, meshes.moonGlow.opacity);
     bindAttrib(prog, 'position', meshes.moonGlow.buffers.position, 3);
@@ -399,7 +408,7 @@ const Scene = (() => {
     gl.disable(gl.CULL_FACE);
     prog = programs.sand;
     gl.useProgram(prog.handle);
-    setCommon(prog, meshes.sand.model, view);
+    setCommon(prog, meshes.sand.model);
     gl.uniform3fv(prog.uniforms.color, meshes.sand.color);
     gl.uniform1f(prog.uniforms.opacity, meshes.sand.opacity);
     gl.uniform1f(prog.uniforms.size, meshes.sand.size);
@@ -420,7 +429,7 @@ const Scene = (() => {
 
   function frame(now) {
     rafId = 0;
-    if (motionOff() || hidden) return;
+    if (motionOff() || hidden || contextLost) return;
 
     // Off the game screen the background is decoration; drawing it 60 times a
     // second is a battery cost with no gameplay benefit.
@@ -445,7 +454,7 @@ const Scene = (() => {
   }
 
   function startLoop() {
-    if (rafId || motionOff() || hidden || !initialized) return;
+    if (rafId || motionOff() || hidden || contextLost || !initialized) return;
     rafId = requestAnimationFrame(frame);
   }
 
@@ -512,6 +521,35 @@ const Scene = (() => {
     document.addEventListener('visibilitychange', () => {
       hidden = document.hidden;
       if (hidden) stopLoop(); else startLoop();
+    });
+
+    // A mobile GPU can drop the context under memory pressure or an app
+    // switch. Without these the background went black for good and every
+    // later draw call was a silent no-op until the page was reloaded.
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();  // required, or the context is never restorable
+      stopLoop();
+      contextLost = true;
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      contextLost = false;
+      // Every buffer and program died with the context; rebuild from scratch.
+      meshes = {};
+      try {
+        programs = {
+          sky: GL.program(gl, SKY_VERT, SKY_FRAG),
+          star: GL.program(gl, STAR_VERT, STAR_FRAG),
+          ground: GL.program(gl, GROUND_VERT, GROUND_FRAG),
+          basic: GL.program(gl, BASIC_VERT, BASIC_FRAG),
+          sand: GL.program(gl, SAND_VERT, SAND_FRAG)
+        };
+      } catch (e) {
+        console.warn('Background scene could not be restored:', e.message);
+        return;
+      }
+      buildScene();
+      resize();
+      if (motionOff()) renderStill(); else startLoop();
     });
 
     initialized = true;

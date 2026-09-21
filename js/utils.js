@@ -137,10 +137,17 @@ function buildSurvivalQueue(pool, rng) {
 // STREAK_CAP is the fix for a runaway curve: the bonus used to grow linearly
 // without limit, so by question 20 a streak was worth 200 against a base of
 // 100 and two thirds of a score came from round length rather than skill.
+// SPEED_FLOOR closes the other half of the time-attack exploit: the speed
+// bonus used to be measured from zero, so a reflex tap on a question the
+// player had not read scored the full +50 — strictly more per second than
+// reading and answering. Nobody reads an Arabic question and four options in
+// under ~1.2s, so anything faster is treated as 1.2s and earns the same as a
+// genuinely fast reader, no more.
 const SCORING = {
   BASE: 100,
   SPEED_WINDOW: 5,   // seconds within which a speed bonus is earned
   SPEED_MAX: 50,     // maximum speed bonus
+  SPEED_FLOOR: 1.2,  // answers faster than this are scored as if they took this
   STREAK_MIN: 3,     // streak length at which the bonus starts
   STREAK_STEP: 10,
   STREAK_CAP: 10     // streak length beyond which the bonus stops growing
@@ -150,8 +157,9 @@ const SCORING = {
 // and the raw streak bonus (for the on-screen popup).
 function scoreAnswer(timeTaken, streak, multiplier) {
   let points = SCORING.BASE;
-  if (timeTaken < SCORING.SPEED_WINDOW) {
-    points += Math.round((SCORING.SPEED_WINDOW - timeTaken) / SCORING.SPEED_WINDOW * SCORING.SPEED_MAX);
+  const effective = Math.max(timeTaken, SCORING.SPEED_FLOOR);
+  if (effective < SCORING.SPEED_WINDOW) {
+    points += Math.round((SCORING.SPEED_WINDOW - effective) / SCORING.SPEED_WINDOW * SCORING.SPEED_MAX);
   }
   let streakBonus = 0;
   if (streak >= SCORING.STREAK_MIN) {

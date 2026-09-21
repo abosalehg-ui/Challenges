@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a0a2e">
+<!-- frame-ancestors is deliberately absent: it is ignored in a <meta> CSP and
+     has to be sent as a header by whatever serves the app. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="description" content="تحدي العقول - مسابقة ثقافية عربية تختبر سرعة بديهتك بأسئلة في مجالات متنوعة">
 <title>تحدي العقول - مسابقة ثقافية</title>
 <link rel="manifest" href="manifest.json">
@@ -18,10 +21,10 @@
 
 <!-- Top bar: always-reachable controls (sound, theme, pause, home) -->
 <div class="top-bar">
-  <button class="icon-btn" id="btnMute" onclick="toggleMute()" aria-label="كتم الصوت" aria-pressed="false" title="كتم/تشغيل الصوت">🔊</button>
-  <button class="icon-btn" id="btnTheme" onclick="toggleTheme()" aria-label="تبديل السمة" title="تبديل السمة">🌙</button>
-  <button class="icon-btn" id="btnPause" onclick="togglePause()" aria-label="إيقاف مؤقت" title="إيقاف مؤقت">⏸️</button>
-  <button class="icon-btn" id="btnBack" onclick="requestExit()" aria-label="العودة للقائمة" title="القائمة الرئيسية">🏠</button>
+  <button class="icon-btn" id="btnMute" data-action="toggleMute" aria-label="كتم الصوت" aria-pressed="false" title="كتم/تشغيل الصوت">🔊</button>
+  <button class="icon-btn" id="btnTheme" data-action="toggleTheme" aria-label="تبديل السمة" title="تبديل السمة">🌙</button>
+  <button class="icon-btn" id="btnPause" data-action="togglePause" aria-label="إيقاف مؤقت" title="إيقاف مؤقت">⏸️</button>
+  <button class="icon-btn" id="btnBack" data-action="requestExit" aria-label="العودة للقائمة" title="القائمة الرئيسية">🏠</button>
 </div>
 
 <!-- PAUSE OVERLAY -->
@@ -30,8 +33,8 @@
     <div class="pause-icon" aria-hidden="true">⏸️</div>
     <h2 class="pause-title">الجولة متوقفة</h2>
     <p class="pause-hint">العداد متوقف — خذ وقتك.</p>
-    <button class="btn-result btn-retry" id="btnResume" onclick="resumeGame()">▶️ متابعة</button>
-    <button class="btn-secondary" onclick="quitFromPause()">🏠 إنهاء الجولة</button>
+    <button class="btn-result btn-retry" id="btnResume" data-action="resumeGame">▶️ متابعة</button>
+    <button class="btn-secondary" data-action="quitFromPause">🏠 إنهاء الجولة</button>
   </div>
 </div>
 
@@ -55,32 +58,32 @@
     <div class="daily-streak" id="dailyStreak"></div>
 
     <div class="modes-grid">
-      <button class="mode-btn" id="btnClassic" onclick="chooseMode('classic')">
+      <button class="mode-btn" id="btnClassic" data-action="chooseMode" data-arg="classic">
         <span class="mode-label">🎯 كلاسيكي</span>
         <span class="mode-meta">اختر مستواك • جولة كاملة</span>
       </button>
-      <button class="mode-btn" id="btnDaily" onclick="chooseMode('daily')">
+      <button class="mode-btn" id="btnDaily" data-action="chooseMode" data-arg="daily">
         <span class="mode-label">📅 تحدي اليوم</span>
         <span class="mode-meta">10 أسئلة تتغير كل يوم</span>
       </button>
-      <button class="mode-btn" id="btnCategory" onclick="chooseMode('category')">
+      <button class="mode-btn" id="btnCategory" data-action="chooseMode" data-arg="category">
         <span class="mode-label">🗂️ حسب الفئة</span>
         <span class="mode-meta">العب في مجال تختاره</span>
       </button>
-      <button class="mode-btn" id="btnSurvival" onclick="chooseMode('survival')">
+      <button class="mode-btn" id="btnSurvival" data-action="chooseMode" data-arg="survival">
         <span class="mode-label">🛡️ البقاء</span>
         <span class="mode-meta">صعوبة متصاعدة • خطأ واحد ينهي الجولة</span>
       </button>
-      <button class="mode-btn" id="btnTimeattack" onclick="chooseMode('timeattack')">
+      <button class="mode-btn" id="btnTimeattack" data-action="chooseMode" data-arg="timeattack">
         <span class="mode-label">⏱️ ضد الساعة</span>
         <span class="mode-meta">أكبر عدد إجابات صحيحة في دقيقتين</span>
       </button>
     </div>
 
     <div class="secondary-buttons">
-      <button class="btn-secondary" onclick="showAchievements()" aria-label="عرض الإنجازات">🏅 الإنجازات</button>
-      <button class="btn-secondary" onclick="showHistory()" aria-label="عرض سجل الجولات">📊 السجل</button>
-      <button class="btn-secondary" onclick="showSettings()" aria-label="الإعدادات">⚙️ الإعدادات</button>
+      <button class="btn-secondary" data-action="showAchievements" aria-label="عرض الإنجازات">🏅 الإنجازات</button>
+      <button class="btn-secondary" data-action="showHistory" aria-label="عرض سجل الجولات">📊 السجل</button>
+      <button class="btn-secondary" data-action="showSettings" aria-label="الإعدادات">⚙️ الإعدادات</button>
     </div>
   </div>
 
@@ -88,7 +91,7 @@
   <div class="screen" id="difficultyScreen" role="region" aria-label="اختر الصعوبة">
     <h2 class="section-title">اختر مستوى التحدي</h2>
     <div class="difficulty-list">
-      <button class="difficulty-btn" onclick="chooseDifficulty('easy')" aria-label="مستوى سهل">
+      <button class="difficulty-btn" data-action="chooseDifficulty" data-arg="easy" aria-label="مستوى سهل">
         <div class="difficulty-icon">🟢</div>
         <div class="difficulty-info">
           <div class="difficulty-label">سهل</div>
@@ -96,7 +99,7 @@
           <div class="difficulty-meta">10 أسئلة • 20 ثانية لكل سؤال • نقاط ×0.8</div>
         </div>
       </button>
-      <button class="difficulty-btn" onclick="chooseDifficulty('medium')" aria-label="مستوى متوسط">
+      <button class="difficulty-btn" data-action="chooseDifficulty" data-arg="medium" aria-label="مستوى متوسط">
         <div class="difficulty-icon">🟡</div>
         <div class="difficulty-info">
           <div class="difficulty-label">متوسط</div>
@@ -104,7 +107,7 @@
           <div class="difficulty-meta">15 سؤال • 15 ثانية لكل سؤال</div>
         </div>
       </button>
-      <button class="difficulty-btn" onclick="chooseDifficulty('hard')" aria-label="مستوى صعب">
+      <button class="difficulty-btn" data-action="chooseDifficulty" data-arg="hard" aria-label="مستوى صعب">
         <div class="difficulty-icon">🔴</div>
         <div class="difficulty-info">
           <div class="difficulty-label">صعب</div>
@@ -113,14 +116,14 @@
         </div>
       </button>
     </div>
-    <button class="btn-secondary" onclick="backToStart()">← رجوع</button>
+    <button class="btn-secondary" data-action="backToStart">← رجوع</button>
   </div>
 
   <!-- CATEGORY SCREEN -->
   <div class="screen" id="categoryScreen" role="region" aria-label="اختر الفئة">
     <h2 class="section-title">اختر الفئة</h2>
     <div class="category-grid" id="categoryGrid"></div>
-    <button class="btn-secondary" onclick="backToStart()">← رجوع</button>
+    <button class="btn-secondary" data-action="backToStart">← رجوع</button>
   </div>
 
   <!-- GAME SCREEN -->
@@ -143,11 +146,11 @@
 
     <div class="question-row">
       <div class="category-badge" id="categoryBadge"></div>
-      <button class="btn-fifty" id="btnFifty" onclick="useFifty()" aria-label="مساعدة احذف إجابتين خاطئتين" title="احذف إجابتين خاطئتين">✂️ 50:50</button>
+      <button class="btn-fifty" id="btnFifty" data-action="useFifty" aria-label="مساعدة احذف إجابتين خاطئتين" title="احذف إجابتين خاطئتين">✂️ 50:50</button>
     </div>
 
     <div class="question-card">
-      <div class="question-text" id="questionText" aria-live="polite"></div>
+      <div class="question-text" id="questionText" tabindex="-1" role="heading" aria-level="2"></div>
     </div>
 
     <div class="answers-grid" id="answersGrid" role="group" aria-label="خيارات الإجابة"></div>
@@ -155,7 +158,7 @@
     <div class="explanation-card" id="explanationCard">
       <div class="explanation-icon" aria-hidden="true">💡</div>
       <div class="explanation-text" id="explanationText"></div>
-      <button class="explanation-next" onclick="advanceQuestion()" aria-label="الانتقال للسؤال التالي">التالي ←</button>
+      <button class="explanation-next" data-action="advanceQuestion" aria-label="الانتقال للسؤال التالي">التالي ←</button>
     </div>
   </div>
 
@@ -183,11 +186,11 @@
         </div>
       </div>
       <div class="result-buttons">
-        <button class="btn-result btn-retry" id="btnRetry" onclick="replayRound()">🔄 العب مرة أخرى</button>
-        <button class="btn-result btn-share" onclick="shareResult()" aria-label="شارك النتيجة">📤 شارك</button>
+        <button class="btn-result btn-retry" id="btnRetry" data-action="replayRound">🔄 العب مرة أخرى</button>
+        <button class="btn-result btn-share" data-action="shareResult" aria-label="شارك النتيجة">📤 شارك</button>
       </div>
-      <button class="btn-secondary btn-review" id="btnReview" onclick="showReview()" aria-label="مراجعة الأسئلة التي أخطأت فيها">📝 مراجعة الأخطاء</button>
-      <button class="btn-secondary btn-review" onclick="backToStart()">🏠 القائمة الرئيسية</button>
+      <button class="btn-secondary btn-review" id="btnReview" data-action="showReview" aria-label="مراجعة الأسئلة التي أخطأت فيها">📝 مراجعة الأخطاء</button>
+      <button class="btn-secondary btn-review" data-action="backToStart">🏠 القائمة الرئيسية</button>
     </div>
   </div>
 
@@ -195,7 +198,7 @@
   <div class="screen" id="reviewScreen" role="region" aria-label="مراجعة الأخطاء">
     <h2 class="section-title">📝 مراجعة الأخطاء</h2>
     <div class="list-container" id="reviewList"></div>
-    <button class="btn-secondary" onclick="backToResults()" style="margin-top: 14px;">← رجوع للنتيجة</button>
+    <button class="btn-secondary" data-action="backToResults" style="margin-top: 14px;">← رجوع للنتيجة</button>
   </div>
 
   <!-- ACHIEVEMENTS SCREEN -->
@@ -203,14 +206,14 @@
     <h2 class="section-title">🏅 الإنجازات</h2>
     <div class="achievements-meta">المفتوحة: <span id="achievementsCount">0 / 0</span></div>
     <div class="list-container" id="achievementsList"></div>
-    <button class="btn-secondary" onclick="backToStart()" style="margin-top: 14px;">← رجوع</button>
+    <button class="btn-secondary" data-action="backToStart" style="margin-top: 14px;">← رجوع</button>
   </div>
 
   <!-- HISTORY SCREEN -->
   <div class="screen" id="historyScreen" role="region" aria-label="سجل الجولات">
     <h2 class="section-title">📊 سجل الجولات</h2>
     <div class="list-container" id="historyList"></div>
-    <button class="btn-secondary" onclick="backToStart()" style="margin-top: 14px;">← رجوع</button>
+    <button class="btn-secondary" data-action="backToStart" style="margin-top: 14px;">← رجوع</button>
   </div>
 
   <!-- SETTINGS SCREEN -->
@@ -248,15 +251,15 @@
         <div class="setting-static-keys">
           <div><kbd>1</kbd> – <kbd>4</kbd> اختيار الإجابة</div>
         </div>
-        <button class="btn-secondary" onclick="resetKeybinds()" style="margin-top: 10px;">↺ استعادة الافتراضي</button>
+        <button class="btn-secondary" data-action="resetKeybinds" style="margin-top: 10px;">↺ استعادة الافتراضي</button>
       </div>
       <div class="setting-group">
         <div class="setting-label">إعادة التعيين</div>
         <p style="font-size: 0.85rem; color: var(--sand); margin-bottom: 8px;">سيتم حذف جميع النتائج والإنجازات والسجل.</p>
-        <button class="btn-danger" onclick="resetAllData()">🗑️ حذف جميع البيانات</button>
+        <button class="btn-danger" data-action="resetAllData">🗑️ حذف جميع البيانات</button>
       </div>
     </div>
-    <button class="btn-secondary" onclick="backToStart()" style="margin-top: 14px;">← رجوع</button>
+    <button class="btn-secondary" data-action="backToStart" style="margin-top: 14px;">← رجوع</button>
   </div>
 
 </div>
@@ -264,6 +267,7 @@
 <div class="share-toast" id="shareToast" role="status" aria-live="polite">✅ تم نسخ النتيجة!</div>
 
 <script defer src="js/utils.js"></script>
+<script defer src="js/round.js"></script>
 <script defer src="js/storage.js"></script>
 <script defer src="js/audio.js"></script>
 <script defer src="js/gl.js"></script>
